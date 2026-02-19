@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ascentra | Corporate Strategy, Development & Operations</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-wrap">
+      <a class="brand" href="index.html">Ascentra</a>
+
+      <div class="style-controls" aria-label="UI controls">
+        <div class="control-group" role="group" aria-label="Language">
+          <button class="ui-dot ui-lang" data-lang="en" aria-label="English">EN</button>
+          <button class="ui-dot ui-lang" data-lang="nl" aria-label="Nederlands">NL</button>
+        </div>
+        <div class="control-group" role="group" aria-label="Theme">
+          <button class="ui-dot ui-theme" data-theme="dark" aria-label="Dark theme"></button>
+          <button class="ui-dot ui-theme" data-theme="bright" aria-label="Bright theme"></button>
+        </div>
+        <div class="control-group" role="group" aria-label="Palette">
+          <button class="ui-dot ui-palette" data-palette="royal" aria-label="Royal Navy"></button>
+          <button class="ui-dot ui-palette" data-palette="heritage" aria-label="Heritage Brown"></button>
+          <button class="ui-dot ui-palette" data-palette="midnight" aria-label="Midnight Steel"></button>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a href="index.html" data-i18n="nav.home">Home</a>
+        <a href="platform.html" data-i18n="nav.platform">Platform</a>
+        <a href="ascentra-sc-consultancy.html" data-i18n="nav.sc">SC Consultancy</a>
+        <a href="ascentra-development.html" data-i18n="nav.dev">Development</a>
+        <a href="ascentra-operational-support.html" data-i18n="nav.ops">Operational Support</a>
+        <a href="our-work.html" data-i18n="nav.work">Our Work</a>
+        <a href="client-login.html" data-i18n="nav.login">Client log in</a>
+        <a href="contact.html" data-i18n="nav.contact">Contact</a>
+      </nav>
+      <a class="enter-platform-cta" href="#platform-experience" data-enter-platform data-i18n="nav.enterPlatform">Enter Platform Experience</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <video autoplay muted loop playsinline>
+        <source src="assets/video/hero.mp4" type="video/mp4" />
+      </video>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="eyebrow" data-i18n="hero.eyebrow">Private enterprise advisory</p>
+        <h1>Ascentra</h1>
+        <p data-editable-tagline data-i18n="hero.tagline">Operational excellence, engineered with elegance.</p>
+        <div>
+          <a class="btn btn-primary" href="contact.html" data-i18n="hero.ctaPrimary">Plan a strategic consultation</a>
+          <a class="btn btn-secondary" href="our-work.html" data-i18n="hero.ctaSecondary">View our work</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="platform-experience section" id="platform-experience" data-platform-experience>
+      <div class="experience-shell">
+        <div class="experience-topbar">
+          <div>
+            <p class="experience-eyebrow">Ascentra Platform Experience</p>
+            <h2>From strategic narrative to operational outcomes</h2>
+          </div>
+          <div class="experience-route-pills">
+            <button data-route="overview">Overview</button>
+            <button data-route="modules">Modules</button>
+            <button data-route="use-cases">Use cases</button>
+            <button data-route="roi">ROI Simulator</button>
+          </div>
+        </div>
+
+        <div class="experience-body">
+          <aside class="experience-sidenav">
+            <button data-route="overview">01 · Overview</button>
+            <button data-route="modules">02 · Modules</button>
+            <button data-route="use-cases">03 · Use cases</button>
+            <button data-route="roi">04 · ROI Simulator</button>
+          </aside>
+          <section class="experience-content" id="experience-content"></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="section selector-wrap" id="platform-selector">
+      <div class="selector-head">
+        <p class="eyebrow" data-i18n="selector.eyebrow">Platform ecosystem</p>
+        <h2 data-i18n="selector.title">State-of-the-art multi-platform selector</h2>
+        <p class="section-intro" data-i18n="selector.intro">Discover our flagship delivery environments engineered for strategic control, precision execution, and operational dominance.</p>
+      </div>
+      <div class="platform-selector">
+        <a class="platform-card" href="ascentra-development.html">
+          <span class="platform-shimmer"></span>
+          <span class="platform-label" data-i18n="selector.operisLabel">Operis platform</span>
+          <h3>Operis</h3>
+          <p data-i18n="selector.operisText">Enterprise-grade orchestration for product acceleration, architecture modernization, and board-level delivery visibility.</p>
+          <span class="platform-cta" data-i18n="selector.operisCta">Enter Operis →</span>
+        </a>
+
+        <a class="platform-card" href="ascentra-operational-support.html">
+          <span class="platform-shimmer"></span>
+          <span class="platform-label" data-i18n="selector.astraLabel">Astra platform</span>
+          <h3>Astra</h3>
+          <p data-i18n="selector.astraText">Operational command layer designed for continuity, elite support response, and precision service governance.</p>
+          <span class="platform-cta" data-i18n="selector.astraCta">Enter Astra →</span>
+        </a>
+
+        <a class="platform-card" href="ascentra-sc-consultancy.html">
+          <span class="platform-shimmer"></span>
+          <span class="platform-label" data-i18n="selector.scLabel">Ascentra SC consultancy</span>
+          <h3>SC Consultancy</h3>
+          <p data-i18n="selector.scText">High-consequence strategic counsel for executives managing transformation, portfolio choices, and market power plays.</p>
+          <span class="platform-cta" data-i18n="selector.scCta">Enter Consultancy →</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" data-i18n="footer">© Ascentra. Private advisory and enterprise delivery.</footer>
+  <script src="js/main.js"></script>
+  <script src="js/platform-experience.js"></script>
+</body>
+</html>
