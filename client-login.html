@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client log in | Ascentra</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-wrap">
+      <a class="brand" href="index.html">Ascentra</a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="platform.html">Platform</a>
+        <a href="ascentra-sc-consultancy.html">SC Consultancy</a>
+        <a href="ascentra-development.html">Development</a>
+        <a href="ascentra-operational-support.html">Operational Support</a>
+        <a href="our-work.html">Our Work</a>
+        <a href="client-login.html">Client log in</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero"><div class="inner"><h1>Client Portal</h1><p>Premium service desk interface with demo session auth and ticket intake endpoints.</p></div></section>
+    <section class="content">
+      <p id="portal-status" class="status">Loading portal status...</p>
+      <div class="portal-layout">
+        <aside class="portal-panel">
+          <h3>Sign in</h3>
+          <form id="login-form">
+            <label for="email">Client email</label><input id="email" type="email" required placeholder="client@company.com" />
+            <label for="password">Password</label><input id="password" type="password" required placeholder="••••••••" />
+            <button class="btn btn-primary" type="submit">Log in</button>
+          </form>
+          <p class="ticket-meta">Authenticated user: <span id="session-user">Not signed in</span></p>
+          <button id="logout-btn" class="btn btn-secondary" style="display:none; margin-top:.5rem; color:#1e2430; border-color: rgba(16,30,53,.25);">Log out</button>
+        </aside>
+
+        <section class="portal-panel">
+          <h3>Create support request</h3>
+          <form id="ticket-form" style="display:none;">
+            <label for="ticket-title">Title</label><input id="ticket-title" type="text" required placeholder="Short summary" />
+            <label for="ticket-priority">Priority</label><select id="ticket-priority"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select>
+            <label for="ticket-description">Description</label><textarea id="ticket-description" required placeholder="Describe your request"></textarea>
+            <button class="btn btn-primary" type="submit">Submit ticket</button>
+          </form>
+          <h3 style="margin-top:1.2rem;">Recent tickets</h3>
+          <ul id="ticket-list" class="ticket-list"></ul>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">© Ascentra. Private advisory and enterprise delivery.</footer>
+  <script src="js/main.js"></script>
+  <script src="js/portal.js"></script>
+</body>
+</html>

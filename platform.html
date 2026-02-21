@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ascentra Platform Experience</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-wrap">
+      <a class="brand" href="index.html">Ascentra</a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="platform.html">Platform</a>
+        <a href="ascentra-sc-consultancy.html">SC Consultancy</a>
+        <a href="ascentra-development.html">Development</a>
+        <a href="ascentra-operational-support.html">Operational Support</a>
+        <a href="our-work.html">Our Work</a>
+        <a href="client-login.html">Client log in</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+      <a class="enter-platform-cta" href="#platform-experience" data-enter-platform>Enter Platform Experience</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="platform-experience section standalone" id="platform-experience" data-platform-experience>
+      <div class="experience-shell">
+        <div class="experience-topbar">
+          <div>
+            <p class="experience-eyebrow">Ascentra Platform Experience</p>
+            <h1>Standalone Product Tour</h1>
+          </div>
+          <div class="experience-route-pills">
+            <button data-route="overview">Overview</button>
+            <button data-route="modules">Modules</button>
+            <button data-route="use-cases">Use cases</button>
+            <button data-route="roi">ROI Simulator</button>
+          </div>
+        </div>
+
+        <div class="experience-body">
+          <aside class="experience-sidenav">
+            <button data-route="overview">01 · Overview</button>
+            <button data-route="modules">02 · Modules</button>
+            <button data-route="use-cases">03 · Use cases</button>
+            <button data-route="roi">04 · ROI Simulator</button>
+          </aside>
+          <section class="experience-content" id="experience-content"></section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">© Ascentra. Private advisory and enterprise delivery.</footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/platform-experience.js"></script>
+</body>
+</html>
