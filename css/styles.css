@@ -515,3 +515,95 @@ body.splash-active { overflow: hidden; }
 @media (max-width: 980px) {
   .impact-band { grid-template-columns: 1fr; }
 }
+
+/* Final alignment + dark-mode readability + SCADA interactivity */
+.nav-wrap {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+}
+
+.nav-links {
+  margin-left: 0;
+  justify-content: center;
+  width: 100%;
+}
+
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .form-panel,
+body[data-theme="dark"] .portal-panel {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .card h3,
+body[data-theme="dark"] .section h2,
+body[data-theme="dark"] .impact-band h2 {
+  color: #eef4ff;
+}
+
+body[data-theme="dark"] .card p,
+body[data-theme="dark"] .section-intro,
+body[data-theme="dark"] .impact-band p {
+  color: #d0d9e8;
+}
+
+.ops-explainer {
+  margin-top: .45rem;
+  color: #dcd3c2;
+  font-size: .88rem;
+}
+
+.scada-map {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .6rem;
+  padding: .65rem;
+  border: 1px solid rgba(230,220,200,.2);
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+}
+
+.flow-node {
+  border-radius: 10px;
+  border: 1px solid rgba(230,220,200,.2);
+  background: rgba(255,255,255,.05);
+  color: #f6efe1;
+  padding: .55rem;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .2s ease;
+  z-index: 2;
+}
+.flow-node:hover { transform: translateY(-2px); }
+.flow-node.ok { background: rgba(64,168,109,.35); border-color: rgba(122,224,167,.8); }
+.flow-node.warn { background: rgba(193,143,66,.35); border-color: rgba(233,196,122,.82); }
+.flow-node.bad { background: rgba(180,84,84,.4); border-color: rgba(236,140,140,.86); }
+.flow-node.pulse { box-shadow: 0 0 18px rgba(141,199,255,.35); }
+
+.flow-line {
+  position: absolute;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(141,199,255,.7), rgba(236,194,125,.75));
+  border-radius: 999px;
+  opacity: .8;
+}
+.flow-line.l1 { left: 16%; right: 67%; top: 52%; }
+.flow-line.l2 { left: 33%; right: 50%; top: 52%; }
+.flow-line.l3 { left: 50%; right: 33%; top: 52%; }
+.flow-line.l4 { left: 67%; right: 16%; top: 52%; }
+.flow-inspector {
+  margin: .5rem 0 0;
+  color: #d8cab5;
+  font-size: .86rem;
+}
+
+@media (max-width: 1200px) {
+  .nav-wrap { grid-template-columns: 1fr; }
+  .nav-links { justify-content: center; }
+  .style-controls { width: auto; justify-content: center; }
+}
+
+@media (max-width: 980px) {
+  .scada-map { grid-template-columns: 1fr 1fr; }
+  .flow-line { display: none; }
+}

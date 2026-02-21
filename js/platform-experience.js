@@ -22,31 +22,50 @@
       <h3>Three platforms, one operational command layer</h3>
       <p>Operis drives Direct Labour performance, Astra automates inventory intelligence, and SCS scales multidisciplinary transformation.</p>
       <div class="xp-grid platform-grid">
-        <button class="xp-card platform-launch" data-open-route="operis"><h4>Operis</h4><p>All-round Direct Labour control tower with bars, lines, pies, station health and tactical staffing guidance.</p></button>
-        <button class="xp-card platform-launch" data-open-route="astra"><h4>Astra</h4><p>Advanced drone mission control with pallet-face scan visualization, mismatch detection and task dispatch.</p></button>
+        <button class="xp-card platform-launch" data-open-route="operis"><h4>Operis</h4><p>All-round Direct Labour control tower with deep KPI interactivity and SCADA-style process footprint.</p></button>
+        <button class="xp-card platform-launch" data-open-route="astra"><h4>Astra</h4><p>Advanced drone mission control with vision overlays, mismatch detection and cycle-count dispatch.</p></button>
         <button class="xp-card platform-launch" data-open-route="scs"><h4>SCS Consultancy</h4><p>Multidisciplinary team spanning operations, analytics, engineering and transformation governance.</p></button>
       </div>
     `,
 
     operis: () => `
       <h3>Operis | Direct Labour Command Center</h3>
-      <p>Open full-screen dashboard for advanced productivity steering and staffing recommendations.</p>
+      <p>Open full-screen dashboard for state-of-the-art operational steering. Explore bars, lines, pies, SCADA process live coloring, role recommendations, and target recovery actions.</p>
       <button class="btn btn-primary" id="open-operis-dashboard">Open full-screen Operis dashboard</button>
       <div class="kpi-inline"><div class="kpi-tile"><small>Throughput</small><strong>+18%</strong></div><div class="kpi-tile"><small>Direct Labour control</small><strong>94%</strong></div><div class="kpi-tile"><small>Norm deviation</small><strong>-7%</strong></div></div>
       <div class="operis-overlay" id="operis-overlay" aria-hidden="true">
         <div class="operis-panel">
           <div class="operis-head"><h4>Operis Performance Dashboard</h4><button class="ui-dot" id="close-operis-dashboard" aria-label="Close dashboard">×</button></div>
+          <p class="ops-explainer">Use the controls to simulate shift pressure and intervention planning. Mouse over stations and process nodes to inspect live flow quality.</p>
+
           <div class="roi-controls">
             <label>Norm target UPH <span id="norm-target-value">118</span><input id="norm-target" type="range" min="90" max="160" value="118" /></label>
             <label>Shift pressure % <span id="shift-pressure-value">100</span><input id="shift-pressure" type="range" min="75" max="130" value="100" /></label>
             <label>Support interventions <span id="support-value">3</span><input id="support" type="range" min="0" max="12" value="3" /></label>
           </div>
+
           <div class="day-target"><strong id="day-target-status">Day target status: on track</strong><p id="day-target-actions">Action focus: keep current staffing balance and maintain replenishment cadence.</p></div>
+
           <div class="chart-grid">
             <section class="chart-card"><h5>Picker productivity bars</h5><div class="operis-chart" id="operis-bar-chart"></div></section>
             <section class="chart-card"><h5>Hourly trend line</h5><svg id="operis-line-chart" viewBox="0 0 360 170" class="line-chart"></svg></section>
             <section class="chart-card"><h5>Labour contribution pie</h5><div id="operis-pie-chart" class="pie-chart"></div><ul id="pie-legend" class="pie-legend"></ul></section>
           </div>
+
+          <section class="chart-card">
+            <h5>SCADA process footprint</h5>
+            <p>Live flow map of inbound, decanting, pick-to-light, replenishment and loading. Colors auto-update by handling pressure and throughput quality.</p>
+            <div class="scada-map" id="scada-map">
+              <button class="flow-node" data-flow="Inbound Dock">Inbound Dock</button>
+              <button class="flow-node" data-flow="Decanting">Decanting</button>
+              <button class="flow-node" data-flow="Pick-to-Light">Pick-to-Light</button>
+              <button class="flow-node" data-flow="Replenishment Trucks">Replenishment Trucks</button>
+              <button class="flow-node" data-flow="Loading">Loading</button>
+              <div class="flow-line l1"></div><div class="flow-line l2"></div><div class="flow-line l3"></div><div class="flow-line l4"></div>
+            </div>
+            <p id="flow-inspector" class="flow-inspector">Hover a process node to inspect live status.</p>
+          </section>
+
           <section class="chart-card"><h5>Station components</h5><div class="station-grid" id="station-grid"></div></section>
           <section class="chart-card"><h5>Picker table</h5><div class="picker-table-wrap"><table class="picker-table"><thead><tr><th>Picker</th><th>Process</th><th>UPH</th><th>Norm gap</th><th>Status</th></tr></thead><tbody id="picker-table-body"></tbody></table></div></section>
           <section class="chart-card chatbot"><h5>Operis Assistant</h5><div class="chat-log" id="chat-log"><div class="msg bot">Ask: "How can I increase output?"</div></div><div class="chat-input"><input id="chat-input" type="text" placeholder="Type your question..." /><button id="chat-send">Send</button></div></section>
@@ -56,7 +75,7 @@
 
     astra: () => `
       <h3>Astra | Advanced Drone Mission Control</h3>
-      <p>Configure mission complexity, launch and inspect what the drone sees while counting box breaklines.</p>
+      <p>Configure mission complexity and inspect the drone’s live vision of carton breaklines during counting. Red locations indicate mismatches and can be turned into cycle-count tasks immediately.</p>
       <div class="mission-controls">
         <button class="mission-btn active" data-mission="A">Count A</button>
         <button class="mission-btn" data-mission="B">Count B</button>
@@ -146,6 +165,8 @@
     const stationGrid = document.getElementById('station-grid');
     const targetStatus = document.getElementById('day-target-status');
     const targetActions = document.getElementById('day-target-actions');
+    const scadaNodes = document.querySelectorAll('.flow-node');
+    const flowInspector = document.getElementById('flow-inspector');
 
     const draw = () => {
       const normTarget = Number(norm.value);
@@ -182,16 +203,46 @@
       drawPie(pieChart, pieLegend, adjustedValues);
       drawStations(stationGrid, adjustedValues, normTarget);
       drawTargetState(targetStatus, targetActions, adjustedValues, normTarget);
+      colorScada(scadaNodes, adjustedValues, normTarget);
     };
 
     [norm, shift, support].forEach((el) => el.addEventListener('input', draw));
     draw();
 
+    scadaNodes.forEach((node) => {
+      node.addEventListener('mouseover', () => {
+        flowInspector.textContent = `${node.dataset.flow}: live throughput quality and handling pressure actively monitored.`;
+      });
+    });
+
+    const pulse = setInterval(() => {
+      scadaNodes.forEach((node) => node.classList.toggle('pulse'));
+    }, 1400);
+
     open.addEventListener('click', () => overlay.classList.add('active'));
-    close.addEventListener('click', () => overlay.classList.remove('active'));
-    overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.classList.remove('active'); });
+    close.addEventListener('click', () => {
+      overlay.classList.remove('active');
+      clearInterval(pulse);
+    });
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        overlay.classList.remove('active');
+        clearInterval(pulse);
+      }
+    });
 
     initChatbot();
+  }
+
+  function colorScada(nodes, values, normTarget) {
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    nodes.forEach((node, idx) => {
+      const local = values[idx % values.length];
+      node.classList.remove('ok', 'warn', 'bad');
+      if (local >= normTarget + 5 && avg >= normTarget) node.classList.add('ok');
+      else if (local >= normTarget - 4) node.classList.add('warn');
+      else node.classList.add('bad');
+    });
   }
 
   function drawLineChart(svg, values) {
@@ -223,11 +274,8 @@
       const station = document.createElement('button');
       station.className = `station ${status}`;
       station.innerHTML = `<strong>${component}</strong><small>${value} UPH equivalent</small>`;
-      station.addEventListener('click', () => {
-        const order = ['green', 'amber', 'red'];
-        const current = station.classList.contains('green') ? 'green' : station.classList.contains('amber') ? 'amber' : 'red';
-        station.classList.remove('green', 'amber', 'red');
-        station.classList.add(order[(order.indexOf(current) + 1) % order.length]);
+      station.addEventListener('mouseover', () => {
+        station.title = `${component}: ${status.toUpperCase()} performance state`;
       });
       node.appendChild(station);
     });
@@ -239,10 +287,10 @@
 
     if (gap >= 0) {
       statusNode.textContent = `Day target status: achieved (+${gap} UPH)`;
-      actionsNode.textContent = 'Recommended action: lock current staffing grid and shift one spare operator to quality assurance.';
+      actionsNode.textContent = 'Recommended action: keep staffing matrix stable, maintain replenishment rhythm, and hold loading cadence.';
     } else {
       statusNode.textContent = `Day target status: off-track (${gap} UPH)`;
-      actionsNode.textContent = 'Recommended action: swap 1 low-performing loading operator with high-performing replenishment operator, add 2 interventions and rebalance decanting queue.';
+      actionsNode.textContent = 'Recommended action: swap 1 low-performing loading operator with high-performing replenishment operator, increase interventions, and shift one decanting specialist to pick-to-light.';
     }
   }
 
@@ -256,7 +304,7 @@
       const text = input.value.trim();
       if (!text) return;
       log.innerHTML += `<div class="msg user">${text}</div>`;
-      log.innerHTML += `<div class="msg bot">Recommendation: Move D. Bakker from Loading to Decanting, move G. Peters from Replenishment to Loading, and assign B. Janssen to Pick-to-Light wave 3. Estimated efficiency gain: +11% throughput and +7% norm attainment this shift.</div>`;
+      log.innerHTML += `<div class="msg bot">Recommendation: move D. Bakker from Loading to Decanting, move G. Peters from Replenishment to Loading, and assign B. Janssen to Pick-to-Light wave 3. Estimated efficiency gain: +11% throughput and +7% norm attainment this shift.</div>`;
       input.value = '';
       log.scrollTop = log.scrollHeight;
     };
@@ -322,7 +370,7 @@
         rack.classList.add('scanned');
         lines.classList.add('active');
         toast.classList.add('show');
-        toast.textContent = `Drone vision @ ${rack.dataset.rack}: breakline segmentation and carton edge detection active.`;
+        toast.textContent = `Drone vision @ ${rack.dataset.rack}: breakline segmentation + box edge detection active.`;
 
         scanned += 1;
         loc.textContent = String(scanned);
@@ -351,11 +399,8 @@
     });
 
     sendTask.addEventListener('click', () => {
-      if (!mismatchRack) {
-        report.innerHTML += '<li>No mismatch selected yet. Run a mission first.</li>';
-      } else {
-        report.innerHTML += `<li>Cycle count task sent for ${mismatchRack}. Supervisor queue updated.</li>`;
-      }
+      if (!mismatchRack) report.innerHTML += '<li>No mismatch selected yet. Run a mission first.</li>';
+      else report.innerHTML += `<li>Cycle count task sent for ${mismatchRack}. Supervisor queue updated.</li>`;
     });
   }
 

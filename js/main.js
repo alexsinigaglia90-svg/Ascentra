@@ -9,7 +9,6 @@
       'nav.work': 'Our Work',
       'nav.login': 'Client log in',
       'nav.contact': 'Contact',
-      'nav.enterPlatform': 'Enter Platform Experience',
       'hero.eyebrow': 'Private enterprise advisory',
       'hero.tagline': 'Operational excellence, engineered with elegance.',
       'hero.ctaPrimary': 'Plan a strategic consultation',
@@ -25,7 +24,6 @@
       'nav.work': 'Ons Werk',
       'nav.login': 'Client login',
       'nav.contact': 'Contact',
-      'nav.enterPlatform': 'Ga naar Platform Experience',
       'hero.eyebrow': 'Private enterprise advisory',
       'hero.tagline': 'Operationele excellentie, ontworpen met elegantie.',
       'hero.ctaPrimary': 'Plan een strategisch overleg',
@@ -80,23 +78,13 @@
   applyTheme(savedTheme);
   applyPalette(savedPalette);
 
-  document.querySelectorAll('.platform-card').forEach((card) => {
-    card.addEventListener('mousemove', (event) => {
-      const rect = card.getBoundingClientRect();
-      card.style.setProperty('--x', `${((event.clientX - rect.left) / rect.width) * 100}%`);
-      card.style.setProperty('--y', `${((event.clientY - rect.top) / rect.height) * 100}%`);
-    });
-  });
-
   const splash = document.getElementById('splashscreen');
-  if (splash && !sessionStorage.getItem('ascentraSplashSeen')) {
+  if (splash) {
     document.body.classList.add('splash-active');
+    requestAnimationFrame(() => splash.classList.add('show'));
     setTimeout(() => {
       splash.classList.add('hide');
       document.body.classList.remove('splash-active');
-      sessionStorage.setItem('ascentraSplashSeen', '1');
-    }, 1850);
-  } else if (splash) {
-    splash.remove();
+    }, 1800);
   }
 })();
