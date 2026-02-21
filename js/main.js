@@ -14,18 +14,6 @@
       'hero.tagline': 'Operational excellence, engineered with elegance.',
       'hero.ctaPrimary': 'Plan a strategic consultation',
       'hero.ctaSecondary': 'View our work',
-      'selector.eyebrow': 'Platform ecosystem',
-      'selector.title': 'State-of-the-art multi-platform selector',
-      'selector.intro': 'Discover our flagship delivery environments engineered for strategic control, precision execution, and operational dominance.',
-      'selector.operisLabel': 'Operis platform',
-      'selector.operisText': 'Enterprise-grade orchestration for product acceleration, architecture modernization, and board-level delivery visibility.',
-      'selector.operisCta': 'Enter Operis →',
-      'selector.astraLabel': 'Astra platform',
-      'selector.astraText': 'Operational command layer designed for continuity, elite support response, and precision service governance.',
-      'selector.astraCta': 'Enter Astra →',
-      'selector.scLabel': 'Ascentra SC consultancy',
-      'selector.scText': 'High-consequence strategic counsel for executives managing transformation, portfolio choices, and market power plays.',
-      'selector.scCta': 'Enter Consultancy →',
       'footer': '© Ascentra. Private advisory and enterprise delivery.'
     },
     nl: {
@@ -42,18 +30,6 @@
       'hero.tagline': 'Operationele excellentie, ontworpen met elegantie.',
       'hero.ctaPrimary': 'Plan een strategisch overleg',
       'hero.ctaSecondary': 'Bekijk ons werk',
-      'selector.eyebrow': 'Platform ecosysteem',
-      'selector.title': 'State-of-the-art multi-platform selector',
-      'selector.intro': 'Ontdek onze toonaangevende platformen voor strategische controle, nauwkeurige uitvoering en operationeel overwicht.',
-      'selector.operisLabel': 'Operis platform',
-      'selector.operisText': 'Enterprise-grade orchestration voor productversnelling, architectuurmodernisering en board-level leveringsinzicht.',
-      'selector.operisCta': 'Naar Operis →',
-      'selector.astraLabel': 'Astra platform',
-      'selector.astraText': 'Operationele commandolaag voor continuïteit, elite supportrespons en nauwkeurige service-governance.',
-      'selector.astraCta': 'Naar Astra →',
-      'selector.scLabel': 'Ascentra SC consultancy',
-      'selector.scText': 'Strategisch advies voor executives die transformaties, portfolio-keuzes en marktpositie aansturen.',
-      'selector.scCta': 'Naar Consultancy →',
       'footer': '© Ascentra. Private advisory en enterprise delivery.'
     }
   };
@@ -111,4 +87,16 @@
       card.style.setProperty('--y', `${((event.clientY - rect.top) / rect.height) * 100}%`);
     });
   });
+
+  const splash = document.getElementById('splashscreen');
+  if (splash && !sessionStorage.getItem('ascentraSplashSeen')) {
+    document.body.classList.add('splash-active');
+    setTimeout(() => {
+      splash.classList.add('hide');
+      document.body.classList.remove('splash-active');
+      sessionStorage.setItem('ascentraSplashSeen', '1');
+    }, 1850);
+  } else if (splash) {
+    splash.remove();
+  }
 })();
