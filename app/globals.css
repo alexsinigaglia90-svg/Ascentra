@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f2ea;
+  --ink: #0e1621;
+  --blue: #1e3a5f;
+  --brown: #6b4e3d;
+  --line: rgba(14, 22, 33, 0.1);
+  --shadow: 0 20px 46px rgba(13, 20, 30, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), Inter, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-serif), "Cormorant Garamond", serif;
+  letter-spacing: 0.01em;
+}
+
+a,
+button,
+input,
+textarea {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--blue), white 12%);
+  outline-offset: 2px;
+}
+
+.container-shell {
+  width: min(1180px, 92vw);
+  margin-inline: auto;
+}
+
+.section-spacing {
+  padding-block: clamp(4rem, 8vw, 7rem);
+  scroll-margin-top: 6.5rem;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.grain-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.35) 0.5px, transparent 0.5px);
+  background-size: 2px 2px;
+  mix-blend-mode: soft-light;
+}
+
+.hero-vignette::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, transparent 38%, rgba(10, 14, 20, 0.44) 100%),
+    linear-gradient(180deg, rgba(8, 13, 20, 0.46) 0%, rgba(8, 13, 20, 0.22) 38%, rgba(8, 13, 20, 0.66) 100%);
+}
+
+.pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  color: color-mix(in oklab, var(--ink), white 22%);
+  background: color-mix(in oklab, var(--bg), white 26%);
+}
+
+.surface {
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  background: color-mix(in oklab, var(--bg), white 24%);
+  box-shadow: var(--shadow);
+}
+
+.muted {
+  color: color-mix(in oklab, var(--ink), white 36%);
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
