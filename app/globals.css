@@ -184,6 +184,103 @@ textarea {
   background-size: 20px 20px;
 }
 
+.triad-stage {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(16, 27, 40, 0.1);
+  border-radius: 1.55rem;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.65), transparent 38%),
+    radial-gradient(circle at 80% 82%, rgba(30, 58, 95, 0.08), transparent 42%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(245, 241, 233, 0.72));
+  box-shadow:
+    0 34px 64px rgba(12, 20, 31, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.triad-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 48% 16%, rgba(30, 58, 95, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, transparent 28%, rgba(14, 22, 33, 0.03) 100%);
+  z-index: 0;
+}
+
+.triad-connectors {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.triad-connector {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.35;
+  stroke: rgba(30, 58, 95, 0.32);
+}
+
+.triad-energy {
+  fill: none;
+  stroke: url(#triadEnergyGradient);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-dasharray: 1.2 8;
+  animation: connectorFlow 9s linear infinite;
+  opacity: 0.78;
+}
+
+.node-wrap {
+  position: relative;
+}
+
+.node-halo {
+  position: absolute;
+  inset: -16px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(30, 58, 95, 0.25), transparent 70%);
+  opacity: 0;
+  transform: scale(0.88);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+
+.node-wrap[data-active="true"] .node-halo {
+  opacity: 1;
+  transform: scale(1);
+  animation: haloPulse 2.6s ease-in-out infinite;
+}
+
+.node-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(30, 58, 95, 0.72);
+  box-shadow: 0 0 0 7px rgba(30, 58, 95, 0.08), 0 0 28px rgba(30, 58, 95, 0.22);
+}
+
+.triad-panel {
+  border: 1px solid rgba(18, 29, 43, 0.11);
+  border-radius: 1.45rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(30, 58, 95, 0.1), transparent 40%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.58));
+  box-shadow:
+    0 30px 66px rgba(11, 18, 29, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.triad-metric {
+  border-radius: 0.8rem;
+  border: 1px solid rgba(14, 22, 33, 0.08);
+  background: rgba(255, 255, 255, 0.68);
+}
+
 .chip-quiet {
   border: 1px solid rgba(14, 22, 33, 0.12);
   border-radius: 999px;
@@ -206,6 +303,27 @@ textarea {
   }
   50% {
     transform: translate3d(0, -12px, 0) scale(1.04);
+  }
+}
+
+@keyframes connectorFlow {
+  0% {
+    stroke-dashoffset: 120;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes haloPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(1.06);
   }
 }
 
