@@ -13,6 +13,12 @@ type Pillar = {
   flavor: string;
 };
 
+type NodePosition = {
+  top: string;
+  left: string;
+  transform: string;
+};
+
 const pillars: Pillar[] = [
   {
     key: "ascentra",
@@ -55,10 +61,10 @@ const pillars: Pillar[] = [
   },
 ];
 
-const desktopPositions: Record<Pillar["key"], string> = {
-  ascentra: "left-1/2 top-[10%] -translate-x-1/2",
-  operis: "left-[12%] bottom-[10%]",
-  astra: "right-[12%] bottom-[10%]",
+const desktopPositions: Record<Pillar["key"], NodePosition> = {
+  ascentra: { top: "8%", left: "50%", transform: "translate(-50%, 0)" },
+  operis: { top: "79%", left: "14%", transform: "translate(0, -50%)" },
+  astra: { top: "79%", left: "86%", transform: "translate(-100%, -50%)" },
 };
 
 const contentVariants = {
@@ -111,8 +117,8 @@ export default function TriadPillars() {
                   }
             }
           >
-            <span className="ambient-orb left-[10%] top-[14%] h-20 w-20 bg-[var(--blue)]/18" aria-hidden="true" />
-            <span className="ambient-orb right-[12%] top-[70%] h-24 w-24 bg-[var(--brown)]/16 [animation-delay:1.3s]" aria-hidden="true" />
+            <span className="ambient-orb left-[8%] top-[12%] h-24 w-24 bg-[var(--blue)]/16" aria-hidden="true" />
+            <span className="ambient-orb right-[8%] top-[72%] h-28 w-28 bg-[var(--brown)]/14 [animation-delay:1.3s]" aria-hidden="true" />
 
             <svg viewBox="0 0 100 100" className="triad-connectors" aria-hidden="true">
               <defs>
@@ -130,16 +136,18 @@ export default function TriadPillars() {
             </svg>
 
             {pillars.map((pillar) => (
-              <div key={pillar.key} className={`node-wrap absolute ${desktopPositions[pillar.key]}`} data-active={active === pillar.key}>
+              <div
+                key={pillar.key}
+                className="node-wrap absolute"
+                style={desktopPositions[pillar.key]}
+                data-active={active === pillar.key}
+              >
                 <span className="node-halo" aria-hidden="true" />
                 <button
                   type="button"
                   onClick={() => setActive(pillar.key)}
-                  className={`relative rounded-full border px-6 py-2.5 text-sm font-medium tracking-wide transition ${
-                    active === pillar.key
-                      ? "border-[var(--blue)] bg-[var(--blue)] text-[var(--bg)] shadow-[0_16px_34px_rgba(30,58,95,0.35)]"
-                      : "border-[var(--line)] bg-white/85 text-[var(--ink)] hover:border-[var(--blue)]"
-                  }`}
+                  className="triad-node-btn relative px-6 py-2.5 text-sm font-medium tracking-wide"
+                  data-active={active === pillar.key}
                 >
                   {pillar.title}
                 </button>

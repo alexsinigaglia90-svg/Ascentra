@@ -191,11 +191,11 @@ textarea {
   border: 1px solid rgba(16, 27, 40, 0.1);
   border-radius: 1.55rem;
   background:
-    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.65), transparent 38%),
-    radial-gradient(circle at 80% 82%, rgba(30, 58, 95, 0.08), transparent 42%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(245, 241, 233, 0.72));
+    radial-gradient(circle at 14% 16%, rgba(255, 255, 255, 0.9), transparent 35%),
+    radial-gradient(circle at 86% 84%, rgba(30, 58, 95, 0.13), transparent 45%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.86), rgba(244, 239, 229, 0.8));
   box-shadow:
-    0 34px 64px rgba(12, 20, 31, 0.12),
+    0 34px 64px rgba(12, 20, 31, 0.13),
     inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
@@ -205,8 +205,8 @@ textarea {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 48% 16%, rgba(30, 58, 95, 0.08), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, transparent 28%, rgba(14, 22, 33, 0.03) 100%);
+    radial-gradient(circle at 50% 14%, rgba(30, 58, 95, 0.14), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, transparent 30%, rgba(14, 22, 33, 0.04) 100%);
   z-index: 0;
 }
 
@@ -221,22 +221,23 @@ textarea {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.35;
-  stroke: rgba(30, 58, 95, 0.32);
+  stroke-width: 1.15;
+  stroke: rgba(30, 58, 95, 0.38);
 }
 
 .triad-energy {
   fill: none;
   stroke: url(#triadEnergyGradient);
-  stroke-width: 1.8;
+  stroke-width: 2.4;
   stroke-linecap: round;
-  stroke-dasharray: 1.2 8;
-  animation: connectorFlow 9s linear infinite;
-  opacity: 0.78;
+  stroke-dasharray: 1.5 9;
+  animation: connectorFlow 8s linear infinite;
+  opacity: 0.95;
 }
 
 .node-wrap {
   position: relative;
+  z-index: 4;
 }
 
 .node-halo {
@@ -262,6 +263,27 @@ textarea {
   border-radius: 999px;
   background: rgba(30, 58, 95, 0.72);
   box-shadow: 0 0 0 7px rgba(30, 58, 95, 0.08), 0 0 28px rgba(30, 58, 95, 0.22);
+}
+
+.triad-node-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(14, 22, 33, 0.12);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.95), rgba(244, 239, 229, 0.92));
+  color: var(--ink);
+  box-shadow: 0 10px 24px rgba(15, 23, 36, 0.12);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.triad-node-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(30, 58, 95, 0.45);
+}
+
+.triad-node-btn[data-active="true"] {
+  border-color: rgba(30, 58, 95, 0.68);
+  background: linear-gradient(140deg, rgba(30, 58, 95, 0.98), rgba(24, 48, 77, 0.98));
+  color: var(--bg);
+  box-shadow: 0 16px 36px rgba(30, 58, 95, 0.36);
 }
 
 .triad-panel {
