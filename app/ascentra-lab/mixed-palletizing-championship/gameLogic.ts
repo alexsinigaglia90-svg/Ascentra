@@ -222,29 +222,185 @@ function centerDistancePenalty(x: number, z: number, w: number, d: number) {
   return (dx + dz) / (PALLET_WIDTH + PALLET_DEPTH);
 }
 
-function floatingPenalty(placed: PlacedBox[]) {
-  const floating = placed.filter((item) => {
-    if (item.y === 0) {
-      return false;
-    }
-    let support = 0;
-    for (let ix = item.x; ix < item.x + item.w; ix += 1) {
-      for (let iz = item.z; iz < item.z + item.d; iz += 1) {
-        const backed = placed.some((base) => {
-          const matchTop = base.y + base.h === item.y;
-          const inX = ix >= base.x && ix < base.x + base.w;
-          const inZ = iz >= base.z && iz < base.z + base.d;
-          return matchTop && inX && inZ;
-        });
-        if (backed) {
-          support += 1;
-        }
+function overlapArea2d(
+  a: { x: number; z: number; w: number; d: number },
+  b: { x: number; z: number; w: number; d: number }
+) {
+  const overlapX = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const overlapZ = Math.max(0, Math.min(a.z + a.d, b.z + b.d) - Math.max(a.z, b.z));
+  return overlapX * overlapZ;
+}
+
+function supportRatioForPlacement(
+  placed: PlacedBox[],
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  d: number
+) {
+  if (y === 0) {
+    return 1;
+  }
+
+  let supported = 0;
+  for (let ix = x; ix < x + w; ix += 1) {
+    for (let iz = z; iz < z + d; iz += 1) {
+      const hasBase = placed.some((item) => {
+        const topMatches = item.y + item.h === y;
+        const insideX = ix >= item.x && ix < item.x + item.w;
+        const insideZ = iz >= item.z && iz < item.z + item.d;
+        return topMatches && insideX && insideZ;
+      });
+      if (hasBase) {
+        supported += 1;
       }
     }
-    return support / (item.w * item.d) < 0.8;
+  }
+
+  return supported / Math.max(1, w * d);
+}
+
+function contactRatioOnLayer(
+  placed: PlacedBox[],
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+  d: number
+) {
+  const sameLayer = placed.filter((item) => item.y === y);
+  if (sameLayer.length === 0) {
+    return 0.65;
+  }
+
+  let touches = 0;
+  sameLayer.forEach((item) => {
+    const touchX = item.x + item.w === x || x + w === item.x;
+    const overlapZ = z < item.z + item.d && z + d > item.z;
+    const touchZ = item.z + item.d === z || z + d === item.z;
+    const overlapX = x < item.x + item.w && x + w > item.x;
+    if ((touchX && overlapZ) || (touchZ && overlapX)) {
+      touches += 1;
+    }
   });
 
-  return floating.length;
+  return Math.min(1, touches / Math.max(1, Math.sqrt(w * d)));
+}
+
+function layerCoverage(placed: PlacedBox[], layer: number) {
+  const occupied = new Set<string>();
+  placed
+    .filter((item) => item.y === layer)
+    .forEach((item) => {
+      for (let x = item.x; x < item.x + item.w; x += 1) {
+        for (let z = item.z; z < item.z + item.d; z += 1) {
+          occupied.add(`${x}:${z}`);
+        }
+      }
+    });
+  return occupied.size / (PALLET_WIDTH * PALLET_DEPTH);
+}
+
+function pickTargetLayer(placed: PlacedBox[]) {
+  if (placed.length === 0) {
+    return 0;
+  }
+  const highestLayer = placed.reduce((max, box) => Math.max(max, box.y), 0);
+  for (let layer = 0; layer <= highestLayer; layer += 1) {
+    if (layerCoverage(placed, layer) < 0.84) {
+      return layer;
+    }
+  }
+  return highestLayer + 1;
+}
+
+function centerOfGravityDistance(placed: PlacedBox[]) {
+  if (placed.length === 0) {
+    return 0;
+  }
+
+  let sumWeight = 0;
+  let cx = 0;
+  let cz = 0;
+  placed.forEach((item) => {
+    const mass = Math.max(1, item.weight);
+    sumWeight += mass;
+    cx += (item.x + item.w / 2) * mass;
+    cz += (item.z + item.d / 2) * mass;
+  });
+
+  cx /= Math.max(1, sumWeight);
+  cz /= Math.max(1, sumWeight);
+  const dx = cx - PALLET_WIDTH / 2;
+  const dz = cz - PALLET_DEPTH / 2;
+  const maxDist = Math.hypot(PALLET_WIDTH / 2, PALLET_DEPTH / 2);
+  return Math.hypot(dx, dz) / Math.max(1, maxDist);
+}
+
+function skylineRoughness(placed: PlacedBox[]) {
+  if (placed.length === 0) {
+    return 0;
+  }
+
+  const top = Array.from({ length: PALLET_DEPTH }, () => Array.from({ length: PALLET_WIDTH }, () => 0));
+  placed.forEach((item) => {
+    for (let x = item.x; x < item.x + item.w; x += 1) {
+      for (let z = item.z; z < item.z + item.d; z += 1) {
+        top[z][x] = Math.max(top[z][x], item.y + item.h);
+      }
+    }
+  });
+
+  let edges = 0;
+  let diffs = 0;
+  for (let z = 0; z < PALLET_DEPTH; z += 1) {
+    for (let x = 0; x < PALLET_WIDTH; x += 1) {
+      const current = top[z][x];
+      if (x + 1 < PALLET_WIDTH) {
+        diffs += Math.abs(current - top[z][x + 1]);
+        edges += 1;
+      }
+      if (z + 1 < PALLET_DEPTH) {
+        diffs += Math.abs(current - top[z + 1][x]);
+        edges += 1;
+      }
+    }
+  }
+
+  return diffs / Math.max(1, edges * Math.max(1, 0.5 * 12));
+}
+
+function heavyOnFragileViolations(placed: PlacedBox[]) {
+  let violations = 0;
+  placed.forEach((base) => {
+    if (!base.fragile) {
+      return;
+    }
+    const above = placed.some((top) => {
+      if (top.y < base.y + base.h) {
+        return false;
+      }
+      if (top.weight <= base.weight) {
+        return false;
+      }
+      return overlapArea2d(base, top) > 0;
+    });
+    if (above) {
+      violations += 1;
+    }
+  });
+  return violations;
+}
+
+function floatingPenalty(placed: PlacedBox[]) {
+  return placed.reduce((sum, item) => {
+    if (item.y === 0) {
+      return sum;
+    }
+    const support = supportRatioForPlacement(placed, item.x, item.y, item.z, item.w, item.d);
+    return sum + (support < 0.8 ? 1 : 0);
+  }, 0);
 }
 
 export function calculateMetrics(
@@ -266,39 +422,41 @@ export function calculateMetrics(
         placed.length
       : 1;
 
-  const fragilePenalty = placed.reduce((sum, item) => {
-    if (!item.fragile) {
-      return sum;
-    }
+  const supportSamples = placed
+    .filter((item) => item.y > 0)
+    .map((item) => supportRatioForPlacement(placed, item.x, item.y, item.z, item.w, item.d));
+  const avgSupport =
+    supportSamples.length > 0
+      ? supportSamples.reduce((sum, value) => sum + value, 0) / supportSamples.length
+      : 1;
 
-    const heavyAbove = placed.some((other) => {
-      const overlaps =
-        item.x < other.x + other.w &&
-        item.x + item.w > other.x &&
-        item.z < other.z + other.d &&
-        item.z + item.d > other.z;
-      return overlaps && other.y >= item.y + item.h && other.weight > item.weight;
-    });
-
-    return sum + (heavyAbove ? 1 : 0);
-  }, 0);
+  const fragilePenalty = heavyOnFragileViolations(placed);
+  const skylinePenalty = skylineRoughness(placed);
 
   const stabilityRaw =
-    100 - avgCenterPenalty * 40 - floatingPenalty(placed) * 8 - fragilePenalty * 5 + aiBoost;
+    100 -
+    avgCenterPenalty * 34 -
+    floatingPenalty(placed) * 13 -
+    (1 - avgSupport) * 42 -
+    skylinePenalty * 22 -
+    fragilePenalty * 8 +
+    aiBoost;
   const stability = Math.max(12, Math.min(99, stabilityRaw));
 
   const compressionRisk = Math.max(
     4,
-    Math.min(96, 100 - stability + Math.max(0, (heightUsed - 82) * 0.5))
+    Math.min(96, 100 - stability + Math.max(0, (heightUsed - 84) * 0.6) + fragilePenalty * 5)
   );
 
-  const transportSafety = Math.max(8, Math.min(99, 100 - compressionRisk * 0.75));
+  const transportSafety = Math.max(8, Math.min(99, 100 - compressionRisk * 0.7 - skylinePenalty * 16));
 
   const score = Math.round(
-    fillRate * 0.32 +
-      stability * 0.4 +
-      (100 - Math.abs(78 - heightUsed)) * 0.13 +
-      (placed.length / Math.max(1, scenario.cartons)) * 100 * 0.15
+    fillRate * 0.23 +
+      stability * 0.29 +
+      transportSafety * 0.2 +
+      (100 - Math.abs(80 - heightUsed)) * 0.12 +
+      avgSupport * 100 * 0.1 +
+      (placed.length / Math.max(1, scenario.cartons)) * 100 * 0.06
   );
 
   return {
@@ -313,65 +471,191 @@ export function calculateMetrics(
   };
 }
 
+type SolverCandidate = PlacementCandidate & {
+  supportRatio: number;
+  contactRatio: number;
+  localScore: number;
+};
+
+type BeamState = {
+  placed: PlacedBox[];
+  remaining: BoxQueueItem[];
+  score: number;
+};
+
+function projectionScore(
+  placed: PlacedBox[],
+  x: number,
+  z: number,
+  w: number,
+  d: number,
+  layer: number
+) {
+  const occupied = new Set<string>();
+  placed
+    .filter((item) => item.y === layer)
+    .forEach((item) => {
+      for (let ix = item.x; ix < item.x + item.w; ix += 1) {
+        for (let iz = item.z; iz < item.z + item.d; iz += 1) {
+          occupied.add(`${ix}:${iz}`);
+        }
+      }
+    });
+
+  let newlyCovered = 0;
+  for (let ix = x; ix < x + w; ix += 1) {
+    for (let iz = z; iz < z + d; iz += 1) {
+      if (!occupied.has(`${ix}:${iz}`)) {
+        newlyCovered += 1;
+      }
+    }
+  }
+  return newlyCovered / Math.max(1, w * d);
+}
+
+function countEdgeExposure(x: number, z: number, w: number, d: number) {
+  let edges = 0;
+  if (x === 0) {
+    edges += 1;
+  }
+  if (z === 0) {
+    edges += 1;
+  }
+  if (x + w === PALLET_WIDTH) {
+    edges += 1;
+  }
+  if (z + d === PALLET_DEPTH) {
+    edges += 1;
+  }
+  return edges / 4;
+}
+
+function causesHeavyOnFragile(
+  placed: PlacedBox[],
+  candidate: PlacementCandidate,
+  sku: ScenarioSku
+) {
+  if (candidate.y === 0) {
+    return false;
+  }
+  return placed.some((base) => {
+    if (!base.fragile) {
+      return false;
+    }
+    if (base.y + base.h !== candidate.y) {
+      return false;
+    }
+    if (sku.weight <= base.weight) {
+      return false;
+    }
+    return overlapArea2d(base, candidate) > 0;
+  });
+}
+
 function scoreCandidate(
   placed: PlacedBox[],
   candidate: PlacementCandidate,
   sku: ScenarioSku,
   targetLayer: number,
-  fillerBias: number
+  scenario: Scenario
 ): number {
-  const sameLayer = placed.filter((item) => item.y === candidate.y);
-  const layerCoherence =
-    sameLayer.length === 0
-      ? 0.68
-      : sameLayer.reduce((sum, item) => {
-          const touchX =
-            item.x + item.w === candidate.x || candidate.x + candidate.w === item.x;
-          const overlapZ =
-            candidate.z < item.z + item.d && candidate.z + candidate.d > item.z;
-          const touchZ =
-            item.z + item.d === candidate.z || candidate.z + candidate.d === item.z;
-          const overlapX =
-            candidate.x < item.x + item.w && candidate.x + candidate.w > item.x;
-          return sum + (touchX && overlapZ ? 1 : 0) + (touchZ && overlapX ? 1 : 0);
-        }, 0) /
-        Math.max(1, sameLayer.length);
+  const support = supportRatioForPlacement(
+    placed,
+    candidate.x,
+    candidate.y,
+    candidate.z,
+    candidate.w,
+    candidate.d
+  );
+  const contact = contactRatioOnLayer(
+    placed,
+    candidate.x,
+    candidate.y,
+    candidate.z,
+    candidate.w,
+    candidate.d
+  );
+  const coverage = projectionScore(
+    placed,
+    candidate.x,
+    candidate.z,
+    candidate.w,
+    candidate.d,
+    Math.max(0, targetLayer)
+  );
 
-  const flatTopBonus =
-    placed.length === 0
-      ? 0
-      : placed.reduce((sum, item) => {
-          const supportX =
-            candidate.x < item.x + item.w && candidate.x + candidate.w > item.x;
-          const supportZ =
-            candidate.z < item.z + item.d && candidate.z + candidate.d > item.z;
-          return sum + (supportX && supportZ && item.y + item.h === candidate.y ? 1 : 0);
-        }, 0) /
-        Math.max(1, candidate.w * candidate.d);
+  const tentative: PlacedBox[] = [
+    ...placed,
+    {
+      placementId: "probe",
+      skuId: sku.id,
+      label: sku.label,
+      x: candidate.x,
+      y: candidate.y,
+      z: candidate.z,
+      w: candidate.w,
+      d: candidate.d,
+      h: candidate.h,
+      rotated: candidate.rotated,
+      weight: sku.weight,
+      fragile: sku.fragile,
+    },
+  ];
 
+  const cogDistance = centerOfGravityDistance(tentative);
+  const edgeExposure = countEdgeExposure(candidate.x, candidate.z, candidate.w, candidate.d);
+  const footprintArea = candidate.w * candidate.d;
+  const areaNorm = footprintArea / 20;
   const center = 1 - centerDistancePenalty(candidate.x, candidate.z, candidate.w, candidate.d);
-  const lowBias = 1 - candidate.y / 12;
-  const area = (candidate.w * candidate.d) / 16;
-  const fragileBias = sku.fragile ? (candidate.y > 1 ? 1 : 0.2) : 0;
-  const layerPenalty = candidate.y > 0 ? 0 : 0.12;
-  const layerDiscipline = Math.max(0, 1 - Math.abs(candidate.y - targetLayer) / 5);
-  const fillerLift = fillerBias * (1 - area) * 0.22;
+  const lowBias = 1 - candidate.y / Math.max(1, scenario.maxHeight);
+  const layerDiscipline = Math.max(0, 1 - Math.abs(candidate.y - targetLayer) / 4);
+  const isBasePhase = targetLayer <= 1;
+  const isLarge = footprintArea >= 8;
+  const isHeavy = sku.weight >= 15;
+  const fragileBias = sku.fragile ? (candidate.y >= 1 ? 1 : 0) : 0.6;
+
+  let hardPenalty = 0;
+  if (support < (candidate.y === 0 ? 1 : isHeavy || isLarge ? 0.9 : 0.82)) {
+    hardPenalty += 100;
+  }
+  if (sku.fragile && candidate.y === 0 && placed.length > 0) {
+    hardPenalty += 45;
+  }
+  if (causesHeavyOnFragile(placed, candidate, sku)) {
+    hardPenalty += 120;
+  }
+  if (isHeavy && candidate.y > Math.max(2, Math.floor(scenario.maxHeight * 0.45))) {
+    hardPenalty += 50;
+  }
+  if (isBasePhase && isLarge && candidate.y > 1) {
+    hardPenalty += 38;
+  }
+  if (edgeExposure > 0.5 && candidate.y > 1 && support < 0.96) {
+    hardPenalty += 28;
+  }
 
   return (
-    center * 0.24 +
-    lowBias * 0.2 +
-    area * 0.15 +
-    fragileBias * 0.14 +
-    layerCoherence * 0.16 +
-    flatTopBonus * 0.17 +
-    layerPenalty +
-    layerDiscipline * 0.14 +
-    fillerLift
+    center * 18 +
+    lowBias * (isHeavy ? 20 : 12) +
+    areaNorm * (isBasePhase ? 18 : 8) +
+    fragileBias * 8 +
+    support * 28 +
+    contact * 15 +
+    coverage * 14 +
+    layerDiscipline * 14 +
+    (1 - cogDistance) * 16 -
+    edgeExposure * 10 -
+    hardPenalty
   );
 }
 
-function generateCandidates(placed: PlacedBox[], scenario: Scenario, sku: ScenarioSku) {
-  const candidates: PlacementCandidate[] = [];
+function generateCandidates(
+  placed: PlacedBox[],
+  scenario: Scenario,
+  sku: ScenarioSku,
+  targetLayer: number
+) {
+  const candidates: SolverCandidate[] = [];
   const orientations = [
     { w: sku.w, d: sku.d, rotated: false },
     { w: sku.d, d: sku.w, rotated: true },
@@ -390,7 +674,7 @@ function generateCandidates(placed: PlacedBox[], scenario: Scenario, sku: Scenar
           sku.h
         );
         if (check.valid) {
-          candidates.push({
+          const baseCandidate: PlacementCandidate = {
             x,
             z,
             y: check.y,
@@ -398,99 +682,237 @@ function generateCandidates(placed: PlacedBox[], scenario: Scenario, sku: Scenar
             w: orientation.w,
             d: orientation.d,
             h: sku.h,
-          });
+          };
+
+          const support = supportRatioForPlacement(
+            placed,
+            baseCandidate.x,
+            baseCandidate.y,
+            baseCandidate.z,
+            baseCandidate.w,
+            baseCandidate.d
+          );
+          const contact = contactRatioOnLayer(
+            placed,
+            baseCandidate.x,
+            baseCandidate.y,
+            baseCandidate.z,
+            baseCandidate.w,
+            baseCandidate.d
+          );
+          const score = scoreCandidate(placed, baseCandidate, sku, targetLayer, scenario);
+
+          if (score > -55) {
+            candidates.push({
+              ...baseCandidate,
+              supportRatio: support,
+              contactRatio: contact,
+              localScore: score,
+            });
+          }
         }
       }
     }
   });
 
+  candidates.sort((a, b) => b.localScore - a.localScore);
   return candidates;
+}
+
+function evaluateStateScore(scenario: Scenario, placed: PlacedBox[]) {
+  if (placed.length === 0) {
+    return 0;
+  }
+
+  const metrics = calculateMetrics(scenario, placed);
+  const supportSamples = placed
+    .filter((item) => item.y > 0)
+    .map((item) => supportRatioForPlacement(placed, item.x, item.y, item.z, item.w, item.d));
+  const avgSupport =
+    supportSamples.length > 0
+      ? supportSamples.reduce((sum, value) => sum + value, 0) / supportSamples.length
+      : 1;
+
+  const heavyLowScore =
+    placed
+      .filter((item) => item.weight >= 15)
+      .reduce((sum, item, _, arr) => {
+        const low = 1 - item.y / Math.max(1, scenario.maxHeight);
+        return sum + low / Math.max(1, arr.length);
+      }, 0) || 0.75;
+
+  const baseLargeRatio =
+    placed.filter((item) => item.w * item.d >= 8 && item.y <= 1).length /
+    Math.max(1, placed.filter((item) => item.w * item.d >= 8).length);
+
+  const cog = centerOfGravityDistance(placed);
+  const skyline = skylineRoughness(placed);
+  const heavyFragile = heavyOnFragileViolations(placed);
+  const floating = floatingPenalty(placed);
+
+  const penalty =
+    floating * 22 +
+    Math.max(0, 0.86 - avgSupport) * 120 +
+    heavyFragile * 34 +
+    skyline * 36 +
+    Math.max(0, cog - 0.46) * 180;
+
+  return (
+    metrics.score * 1.5 +
+    avgSupport * 58 +
+    heavyLowScore * 34 +
+    baseLargeRatio * 28 +
+    (1 - cog) * 42 -
+    penalty
+  );
+}
+
+function expansionIndices(remaining: BoxQueueItem[], targetLayer: number) {
+  const candidates: number[] = [];
+  const add = (index: number) => {
+    if (index >= 0 && index < remaining.length && !candidates.includes(index)) {
+      candidates.push(index);
+    }
+  };
+
+  remaining.slice(0, 6).forEach((_, index) => add(index));
+
+  if (targetLayer <= 1) {
+    remaining.forEach((item, index) => {
+      if (candidates.length >= 10) {
+        return;
+      }
+      const area = item.sku.w * item.sku.d;
+      if (!item.sku.fragile && (item.sku.weight >= 15 || area >= 8)) {
+        add(index);
+      }
+    });
+  } else {
+    remaining.forEach((item, index) => {
+      if (candidates.length >= 10) {
+        return;
+      }
+      const area = item.sku.w * item.sku.d;
+      if (item.sku.fragile || area <= 4) {
+        add(index);
+      }
+    });
+  }
+
+  return candidates.slice(0, 8);
 }
 
 export function solveAiLayout(scenario: Scenario): PlacedBox[] {
   const queue = expandScenarioQueue(scenario);
-
-  // Heavier and larger cartons first, fragile cartons later to improve top-layer protection.
   queue.sort((a, b) => {
-    const fragileRank = Number(a.sku.fragile) - Number(b.sku.fragile);
-    if (fragileRank !== 0) {
-      return fragileRank;
-    }
     const areaA = a.sku.w * a.sku.d;
     const areaB = b.sku.w * b.sku.d;
-    if (areaB !== areaA) {
+    const fragA = a.sku.fragile ? 1 : 0;
+    const fragB = b.sku.fragile ? 1 : 0;
+    if (fragA !== fragB) {
+      return fragA - fragB;
+    }
+    const heavyA = a.sku.weight >= 15 ? 1 : 0;
+    const heavyB = b.sku.weight >= 15 ? 1 : 0;
+    if (heavyA !== heavyB) {
+      return heavyB - heavyA;
+    }
+    if (areaA !== areaB) {
       return areaB - areaA;
     }
     return b.sku.weight - a.sku.weight;
   });
 
-  const anchors = queue.filter((item) => item.sku.weight >= 16 || item.sku.w * item.sku.d >= 8);
-  const fillers = queue.filter((item) => !anchors.includes(item));
-  fillers.sort((a, b) => a.sku.w * a.sku.d - b.sku.w * b.sku.d || a.sku.weight - b.sku.weight);
+  const beamWidth = 14;
+  const candidatesPerItem = 6;
+  let beams: BeamState[] = [{ placed: [], remaining: queue, score: 0 }];
 
-  const ordered = [...anchors, ...fillers];
+  for (let step = 0; step < scenario.cartons; step += 1) {
+    const expanded: BeamState[] = [];
 
-  const placed: PlacedBox[] = [];
-  let targetLayer = 0;
+    beams.forEach((state) => {
+      if (state.remaining.length === 0) {
+        expanded.push(state);
+        return;
+      }
 
-  const estimateLayerCoverage = (layer: number) => {
-    const occupied = new Set<string>();
-    placed
-      .filter((item) => item.y === layer)
-      .forEach((item) => {
-        for (let x = item.x; x < item.x + item.w; x += 1) {
-          for (let z = item.z; z < item.z + item.d; z += 1) {
-            occupied.add(`${x}:${z}`);
-          }
-        }
+      const targetLayer = pickTargetLayer(state.placed);
+      const indices = expansionIndices(state.remaining, targetLayer);
+      let madeMove = false;
+
+      indices.forEach((itemIndex) => {
+        const item = state.remaining[itemIndex];
+        const localCandidates = generateCandidates(state.placed, scenario, item.sku, targetLayer).slice(
+          0,
+          candidatesPerItem
+        );
+
+        localCandidates.forEach((choice, choiceIdx) => {
+          const nextPlaced: PlacedBox = {
+            placementId: `AI-${item.queueId}-${step}-${choiceIdx}`,
+            skuId: item.sku.id,
+            label: item.sku.label,
+            x: choice.x,
+            y: choice.y,
+            z: choice.z,
+            w: choice.w,
+            d: choice.d,
+            h: choice.h,
+            rotated: choice.rotated,
+            weight: item.sku.weight,
+            fragile: item.sku.fragile,
+          };
+
+          const placed = [...state.placed, nextPlaced];
+          const remaining = state.remaining.filter((_, idx) => idx !== itemIndex);
+          const score = evaluateStateScore(scenario, placed) + placed.length * 5;
+          expanded.push({ placed, remaining, score });
+          madeMove = true;
+        });
       });
-    return occupied.size / (PALLET_WIDTH * PALLET_DEPTH);
-  };
 
-  ordered.forEach((item, index) => {
-    const candidates = generateCandidates(placed, scenario, item.sku);
-    if (candidates.length === 0) {
-      return;
+      if (!madeMove) {
+        expanded.push(state);
+      }
+    });
+
+    if (expanded.length === 0) {
+      break;
     }
 
-    const sameLayer = candidates.filter((candidate) => candidate.y === targetLayer);
-    const nearLayer = candidates.filter((candidate) => candidate.y <= targetLayer + 1);
-    const pool = sameLayer.length > 0 ? sameLayer : nearLayer.length > 0 ? nearLayer : candidates;
-
-    const fillerBias = item.sku.w * item.sku.d <= 4 ? 1 : 0;
-
-    pool.sort((a, b) => {
-      const scoreA = scoreCandidate(placed, a, item.sku, targetLayer, fillerBias);
-      const scoreB = scoreCandidate(placed, b, item.sku, targetLayer, fillerBias);
-      return scoreB - scoreA;
+    expanded.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return b.placed.length - a.placed.length;
     });
 
-    const choice = pool[0];
-
-    placed.push({
-      placementId: `AI-${item.queueId}-${index}`,
-      skuId: item.sku.id,
-      label: item.sku.label,
-      x: choice.x,
-      y: choice.y,
-      z: choice.z,
-      w: choice.w,
-      d: choice.d,
-      h: choice.h,
-      rotated: choice.rotated,
-      weight: item.sku.weight,
-      fragile: item.sku.fragile,
+    const deduped: BeamState[] = [];
+    const seen = new Set<string>();
+    expanded.forEach((state) => {
+      if (deduped.length >= beamWidth) {
+        return;
+      }
+      const signature = state.placed
+        .slice(-10)
+        .map((item) => `${item.x}:${item.y}:${item.z}:${item.w}:${item.d}:${item.h}`)
+        .join("|");
+      if (seen.has(signature)) {
+        return;
+      }
+      seen.add(signature);
+      deduped.push(state);
     });
 
-    const coverage = estimateLayerCoverage(targetLayer);
-    const hasFutureAtLayer = ordered.slice(index + 1).some((next) => {
-      const opts = generateCandidates(placed, scenario, next.sku);
-      return opts.some((candidate) => candidate.y === targetLayer);
-    });
-    if (coverage >= 0.74 || !hasFutureAtLayer) {
-      targetLayer += 1;
+    beams = deduped;
+
+    if (beams.every((state) => state.remaining.length === 0)) {
+      break;
     }
-  });
+  }
+
+  const best = beams.sort((a, b) => b.score - a.score || b.placed.length - a.placed.length)[0];
+  const placed = best?.placed ?? [];
 
   return placed.sort((a, b) => {
     if (a.y !== b.y) {
