@@ -1,15 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import styles from "./championship.module.css";
 import {
@@ -29,10 +21,10 @@ const CAMERA_POSE = {
   hero: new THREE.Vector3(5.6, 4.8, 7.2),
   challenge: new THREE.Vector3(4.7, 5.1, 5.6),
   ai: new THREE.Vector3(7.4, 6.2, 6.9),
-  results: new THREE.Vector3(9.8, 6.4, 11.2),
+  results: new THREE.Vector3(0, 2.4, 3.2),
 };
 
-const DUAL_ARENA_OFFSET = 2.45;
+const DUAL_ARENA_OFFSET = 3.05;
 
 const CAMERA_ORBIT_RADIUS = {
   challenge: 0.38,
@@ -83,12 +75,27 @@ function makeTopMap(placed: PlacedBox[]) {
   return map;
 }
 
+function getPlacementDims(sku: BoxQueueItem["sku"], rotated: boolean, tilted: boolean) {
+  const w = rotated ? sku.d : sku.w;
+  let d = rotated ? sku.w : sku.d;
+  let h = sku.h;
+
+  if (tilted) {
+    const nextH = d;
+    d = h;
+    h = nextH;
+  }
+
+  return { w, d, h };
+}
+
 export default function MixedPalletizingChampionship() {
   const [phase, setPhase] = useState<GamePhase>("hero");
   const [scenario, setScenario] = useState<Scenario>(() => generateScenario());
   const [queue, setQueue] = useState<BoxQueueItem[]>(() => expandScenarioQueue(generateScenario()));
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
   const [rotation, setRotation] = useState(false);
+  const [tilt, setTilt] = useState(false);
   const [placed, setPlaced] = useState<PlacedBox[]>([]);
   const [aiPlaced, setAiPlaced] = useState<PlacedBox[]>([]);
   const [userMetrics, setUserMetrics] = useState<RunMetrics>(emptyMetrics);
@@ -97,7 +104,6 @@ export default function MixedPalletizingChampionship() {
   const [thinkingMessages, setThinkingMessages] = useState<SolverMessage[]>([]);
   const [aiBuildStep, setAiBuildStep] = useState(0);
   const [aiLayerStatus, setAiLayerStatus] = useState("Awaiting layer sequence");
-  const [conveyorLaunch, setConveyorLaunch] = useState<{ id: string; dx: number; dy: number } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -117,6 +123,8 @@ export default function MixedPalletizingChampionship() {
   const dualUserBoxesGroupRef = useRef<THREE.Group | null>(null);
   const dualAiBoxesGroupRef = useRef<THREE.Group | null>(null);
   const dualAiLightRef = useRef<THREE.SpotLight | null>(null);
+  const inventoryGroupRef = useRef<THREE.Group | null>(null);
+  const inventoryMiniMeshesRef = useRef<THREE.Mesh[]>([]);
   const ghostMeshRef = useRef<THREE.Mesh | null>(null);
   const pickMeshRef = useRef<THREE.Mesh | null>(null);
   const holoGridRef = useRef<THREE.Mesh | null>(null);
@@ -129,12 +137,21 @@ export default function MixedPalletizingChampionship() {
   const phaseRef = useRef<GamePhase>("hero");
   const selectedItemRef = useRef<BoxQueueItem | null>(null);
   const rotationRef = useRef(false);
+  const tiltRef = useRef(false);
   const stabilityRef = useRef(100);
   const placedRef = useRef<PlacedBox[]>([]);
   const scenarioRef = useRef<Scenario>(scenario);
   const aiLayoutsRef = useRef<PlacedBox[][]>([]);
   const aiLayoutIndexRef = useRef(0);
-  const cursorScreenRef = useRef<{ x: number; y: number }>({ x: 720, y: 420 });
+  const cameraRigRef = useRef({
+    yaw: -0.62,
+    pitch: 0.6,
+    distance: 6,
+    targetDistance: 6,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+  });
 
   const AI_LAYER_TEXT = useRef([
     "Layer 1 stabilised",
@@ -175,6 +192,10 @@ export default function MixedPalletizingChampionship() {
   }, [rotation]);
 
   useEffect(() => {
+    tiltRef.current = tilt;
+  }, [tilt]);
+
+  useEffect(() => {
     stabilityRef.current = userMetrics.stability;
   }, [userMetrics.stability]);
 
@@ -192,6 +213,7 @@ export default function MixedPalletizingChampionship() {
       setQueue(nextQueue);
       setSelectedQueueId(nextQueue[0]?.queueId ?? null);
       setRotation(false);
+      setTilt(false);
       setPlaced([]);
       setAiPlaced([]);
       setAiBuildStep(0);
@@ -463,6 +485,39 @@ export default function MixedPalletizingChampionship() {
     dualArenaGroup.add(dualAiLight);
     dualArenaGroup.add(dualAiLight.target);
 
+    const inventoryGroup = new THREE.Group();
+    inventoryGroup.position.set(0, 0.58, 2.1);
+    inventoryGroupRef.current = inventoryGroup;
+    scene.add(inventoryGroup);
+
+    const inventoryGlass = new THREE.Mesh(
+      new THREE.BoxGeometry(4.8, 0.24, 0.88),
+      new THREE.MeshPhysicalMaterial({
+        color: "#7db8ff",
+        metalness: 0.08,
+        roughness: 0.16,
+        transmission: 0.74,
+        thickness: 0.7,
+        transparent: true,
+        opacity: 0.38,
+        clearcoat: 1,
+        clearcoatRoughness: 0.1,
+      })
+    );
+    inventoryGlass.receiveShadow = true;
+    inventoryGroup.add(inventoryGlass);
+
+    const inventoryGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.1, 1.2),
+      new THREE.MeshBasicMaterial({
+        color: "#56c7ff",
+        transparent: true,
+        opacity: 0.12,
+      })
+    );
+    inventoryGlow.position.set(0, 0.02, -0.36);
+    inventoryGroup.add(inventoryGlow);
+
     const holoGridGeo = new THREE.PlaneGeometry(4.1, 3.4, 18, 14);
     const holoGridMat = new THREE.MeshBasicMaterial({
       color: "#4fc6f6",
@@ -544,33 +599,37 @@ export default function MixedPalletizingChampionship() {
 
       const cam = cameraRef.current;
       if (cam) {
-        const target =
-          livePhase === "hero"
-            ? CAMERA_POSE.hero
-            : livePhase === "challenge"
-              ? CAMERA_POSE.challenge
-              : livePhase === "results"
-                ? CAMERA_POSE.results
-                : CAMERA_POSE.ai;
+        const targetFov = livePhase === "results" ? 92 : 45;
+        if (Math.abs(cam.fov - targetFov) > 0.1) {
+          cam.fov = THREE.MathUtils.lerp(cam.fov, targetFov, 0.18);
+          cam.updateProjectionMatrix();
+        }
 
-        const orbitStrength =
-          livePhase === "challenge"
-            ? CAMERA_ORBIT_RADIUS.challenge
-            : livePhase === "results"
-              ? CAMERA_ORBIT_RADIUS.results
-              : livePhase === "aiThinking" || livePhase === "aiBuild"
-                ? CAMERA_ORBIT_RADIUS.ai
-                : 0.15;
-
-        const orbitX = Math.sin(t * (livePhase === "aiThinking" ? 1.2 : 0.7)) * orbitStrength;
-        const orbitZ = Math.cos(t * (livePhase === "aiThinking" ? 1.1 : 0.6)) * orbitStrength;
-
-        cam.position.lerp(new THREE.Vector3(target.x + orbitX, target.y, target.z + orbitZ), 0.03);
-
-        const look = LOOK_AT.clone();
-        look.x = Math.sin(t * 0.52) * 0.06;
-        look.z = Math.cos(t * 0.43) * 0.06;
-        cam.lookAt(look);
+        if (livePhase === "challenge") {
+          const rig = cameraRigRef.current;
+          rig.distance = THREE.MathUtils.lerp(rig.distance, rig.targetDistance, 0.14);
+          const cx = Math.sin(rig.yaw) * Math.cos(rig.pitch) * rig.distance;
+          const cy = Math.sin(rig.pitch) * rig.distance + 1.05;
+          const cz = Math.cos(rig.yaw) * Math.cos(rig.pitch) * rig.distance;
+          cam.position.lerp(new THREE.Vector3(cx, cy, cz), 0.18);
+          cam.lookAt(LOOK_AT);
+        } else if (livePhase === "results") {
+          cam.position.lerp(CAMERA_POSE.results, 0.06);
+          cam.lookAt(0, 0.4, 0);
+        } else {
+          const target = livePhase === "hero" ? CAMERA_POSE.hero : CAMERA_POSE.ai;
+          const orbitStrength =
+            livePhase === "aiThinking" || livePhase === "aiBuild"
+              ? CAMERA_ORBIT_RADIUS.ai
+              : 0.15;
+          const orbitX = Math.sin(t * (livePhase === "aiThinking" ? 1.2 : 0.7)) * orbitStrength;
+          const orbitZ = Math.cos(t * (livePhase === "aiThinking" ? 1.1 : 0.6)) * orbitStrength;
+          cam.position.lerp(new THREE.Vector3(target.x + orbitX, target.y, target.z + orbitZ), 0.03);
+          const look = LOOK_AT.clone();
+          look.x = Math.sin(t * 0.52) * 0.06;
+          look.z = Math.cos(t * 0.43) * 0.06;
+          cam.lookAt(look);
+        }
       }
 
       const key = keyLightRef.current;
@@ -596,12 +655,40 @@ export default function MixedPalletizingChampionship() {
       if (dualArenaGroupRef.current) {
         dualArenaGroupRef.current.visible = comparisonMode;
       }
+      if (inventoryGroupRef.current) {
+        inventoryGroupRef.current.visible = livePhase === "challenge";
+        inventoryGroupRef.current.position.y = THREE.MathUtils.lerp(
+          inventoryGroupRef.current.position.y,
+          livePhase === "challenge" ? 0.58 : 0.2,
+          0.08
+        );
+      }
 
       const aiShowcaseLight = dualAiLightRef.current;
       if (aiShowcaseLight) {
         const target = comparisonMode ? 2.4 : 0;
         aiShowcaseLight.intensity = THREE.MathUtils.lerp(aiShowcaseLight.intensity, target, 0.06);
       }
+
+      inventoryMiniMeshesRef.current.forEach((mesh, index) => {
+        const baseY = (mesh.userData.baseY as number) ?? 0.16;
+        const hoverLift = mesh.userData.hovered ? 0.08 : 0;
+        const launch = mesh.userData.launch as number | undefined;
+        const launchTargetX = (mesh.userData.launchTargetX as number | undefined) ?? mesh.position.x;
+        const launchTargetY = (mesh.userData.launchTargetY as number | undefined) ?? (baseY + 0.5);
+        if (typeof launch === "number" && launch > 0) {
+          const next = Math.max(0, launch - 0.06);
+          mesh.userData.launch = next;
+          mesh.position.x = THREE.MathUtils.lerp(mesh.position.x, launchTargetX, 0.22);
+          mesh.position.y = THREE.MathUtils.lerp(mesh.position.y, launchTargetY, 0.28);
+        } else {
+          mesh.position.y = THREE.MathUtils.lerp(
+            mesh.position.y,
+            baseY + hoverLift + Math.sin(t * 2 + index * 0.7) * 0.01,
+            0.16
+          );
+        }
+      });
 
       const pallet = palletGroupRef.current;
       if (pallet) {
@@ -615,15 +702,16 @@ export default function MixedPalletizingChampionship() {
       const activeItem = selectedItemRef.current;
       if (pick && activeItem && livePhase === "challenge") {
         pick.visible = true;
-        const isRotated = rotationRef.current;
-        const w = (isRotated ? activeItem.sku.d : activeItem.sku.w) * CELL_SIZE;
-        const d = (isRotated ? activeItem.sku.w : activeItem.sku.d) * CELL_SIZE;
-        const h = activeItem.sku.h * CELL_SIZE;
+        const dims = getPlacementDims(activeItem.sku, rotationRef.current, tiltRef.current);
+        const w = dims.w * CELL_SIZE;
+        const d = dims.d * CELL_SIZE;
+        const h = dims.h * CELL_SIZE;
 
         pick.geometry.dispose();
         pick.geometry = new THREE.BoxGeometry(w, h, d);
         pick.position.y = 0.9 + Math.sin(t * 2.4) * 0.08;
         pick.rotation.y = THREE.MathUtils.lerp(pick.rotation.y, rotationRef.current ? Math.PI * 0.5 : 0, 0.12);
+        pick.rotation.z = THREE.MathUtils.lerp(pick.rotation.z, tiltRef.current ? Math.PI * 0.5 : 0, 0.14);
       } else if (pick) {
         pick.visible = false;
       }
@@ -892,6 +980,47 @@ export default function MixedPalletizingChampionship() {
     });
   }, []);
 
+  const syncInventoryBar = useCallback((items: BoxQueueItem[], activeQueueId: string | null) => {
+    const inventory = inventoryGroupRef.current;
+    if (!inventory) {
+      return;
+    }
+
+    const oldMeshes = inventoryMiniMeshesRef.current;
+    oldMeshes.forEach((mesh) => {
+      inventory.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    });
+    inventoryMiniMeshesRef.current = [];
+
+    const visible = items.slice(0, 12);
+    const span = 4.2;
+    const spacing = visible.length > 1 ? span / (visible.length - 1) : 0;
+
+    visible.forEach((item, index) => {
+      const dims = getPlacementDims(item.sku, false, false);
+      const geo = new THREE.BoxGeometry(dims.w * CELL_SIZE * 0.28, dims.h * CELL_SIZE * 0.28, dims.d * CELL_SIZE * 0.28);
+      const isActive = item.queueId === activeQueueId;
+      const mat = new THREE.MeshStandardMaterial({
+        color: "#cfa278",
+        roughness: 0.38,
+        metalness: 0.08,
+        emissive: isActive ? "#5ecbff" : "#6a4928",
+        emissiveIntensity: isActive ? 0.34 : 0.08,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      const x = -span / 2 + spacing * index;
+      mesh.position.set(x, 0.16 + dims.h * CELL_SIZE * 0.14, 0.02);
+      mesh.userData.queueId = item.queueId;
+      mesh.userData.baseY = mesh.position.y;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      inventory.add(mesh);
+      inventoryMiniMeshesRef.current.push(mesh);
+    });
+  }, []);
+
   useEffect(() => {
     syncPlacedMeshes(placed, "user");
     syncComparisonMeshes(placed, "user");
@@ -906,6 +1035,10 @@ export default function MixedPalletizingChampionship() {
     syncComparisonMeshes(aiPlaced, "ai");
   }, [aiPlaced, syncComparisonMeshes]);
 
+  useEffect(() => {
+    syncInventoryBar(queue, selectedQueueId);
+  }, [queue, selectedQueueId, syncInventoryBar]);
+
   const updateGhost = useCallback(
     (x: number, z: number) => {
       if (!selectedItem || phase !== "challenge") {
@@ -916,9 +1049,10 @@ export default function MixedPalletizingChampionship() {
         return;
       }
 
-      const w = rotation ? selectedItem.sku.d : selectedItem.sku.w;
-      const d = rotation ? selectedItem.sku.w : selectedItem.sku.d;
-      const h = selectedItem.sku.h;
+      const dims = getPlacementDims(selectedItem.sku, rotation, tilt);
+      const w = dims.w;
+      const d = dims.d;
+      const h = dims.h;
       const check = isValidPlacement(placed, scenario, x, z, w, d, h);
 
       hoveredPlacementRef.current = {
@@ -959,7 +1093,7 @@ export default function MixedPalletizingChampionship() {
       material.color.set(check.valid ? "#3fe095" : "#ff6f75");
       material.emissive.set(check.valid ? "#2cc883" : "#cf434b");
     },
-    [phase, placed, rotation, scenario, selectedItem]
+    [phase, placed, rotation, scenario, selectedItem, tilt]
   );
 
   useEffect(() => {
@@ -973,13 +1107,20 @@ export default function MixedPalletizingChampionship() {
         return;
       }
 
-      cursorScreenRef.current = { x: event.clientX, y: event.clientY };
-
       const rect = canvas.getBoundingClientRect();
       pointerRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointerRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycasterRef.current.setFromCamera(pointerRef.current, cameraRef.current);
+
+      const inventoryHits = raycasterRef.current.intersectObjects(inventoryMiniMeshesRef.current, false);
+      inventoryMiniMeshesRef.current.forEach((mesh) => {
+        mesh.userData.hovered = inventoryHits.some((hit) => hit.object === mesh);
+      });
+      if (inventoryHits.length > 0) {
+        return;
+      }
+
       const hit = new THREE.Vector3();
 
       if (raycasterRef.current.ray.intersectPlane(floorPlaneRef.current, hit)) {
@@ -1001,16 +1142,15 @@ export default function MixedPalletizingChampionship() {
               const probe = selectedItemRef.current;
               let valid = false;
               if (probe) {
-                const w = rotationRef.current ? probe.sku.d : probe.sku.w;
-                const depth = rotationRef.current ? probe.sku.w : probe.sku.d;
+                const dims = getPlacementDims(probe.sku, rotationRef.current, tiltRef.current);
                 valid = isValidPlacement(
                   placedRef.current,
                   scenarioRef.current,
                   x,
                   z,
-                  w,
-                  depth,
-                  probe.sku.h
+                  dims.w,
+                  dims.d,
+                  dims.h
                 ).valid;
               }
               candidates.push({ x, z, distance: d, valid });
@@ -1036,8 +1176,41 @@ export default function MixedPalletizingChampionship() {
       }
     };
 
-    const onClick = () => {
+    const hitInventory = (event: MouseEvent) => {
+      if (phase !== "challenge" || !cameraRef.current) {
+        return false;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      pointerRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(pointerRef.current, cameraRef.current);
+      const hits = raycasterRef.current.intersectObjects(inventoryMiniMeshesRef.current, false);
+      if (hits.length === 0) {
+        return false;
+      }
+
+      const picked = hits[0].object as THREE.Mesh;
+      const queueId = picked.userData.queueId as string | undefined;
+      if (!queueId) {
+        return false;
+      }
+
+      const nx = (event.clientX / window.innerWidth - 0.5) * 2;
+      const ny = (event.clientY / window.innerHeight - 0.5) * 2;
+      picked.userData.launch = 1;
+      picked.userData.launchTargetX = THREE.MathUtils.clamp(nx * 2.1, -2.4, 2.4);
+      picked.userData.launchTargetY = 1.38 - ny * 0.36;
+      setSelectedQueueId(queueId);
+      return true;
+    };
+
+    const onClick = (event: MouseEvent) => {
       if (phase !== "challenge") {
+        return;
+      }
+
+      if (event.button === 0 && hitInventory(event)) {
         return;
       }
 
@@ -1056,7 +1229,7 @@ export default function MixedPalletizingChampionship() {
         w: hover.w,
         d: hover.d,
         h: hover.h,
-        rotated: rotation,
+        rotated: rotationRef.current || tiltRef.current,
         weight: selectedItem.sku.weight,
         fragile: selectedItem.sku.fragile,
       };
@@ -1074,6 +1247,54 @@ export default function MixedPalletizingChampionship() {
       });
     };
 
+    const onPointerDown = (event: PointerEvent) => {
+      if (phase !== "challenge") {
+        return;
+      }
+      if (event.button === 1) {
+        event.preventDefault();
+        setTilt((current) => !current);
+      }
+      if (event.button === 2) {
+        const rig = cameraRigRef.current;
+        rig.dragging = true;
+        rig.lastX = event.clientX;
+        rig.lastY = event.clientY;
+      }
+    };
+
+    const onPointerUp = () => {
+      cameraRigRef.current.dragging = false;
+    };
+
+    const onPointerDrag = (event: PointerEvent) => {
+      if (!cameraRigRef.current.dragging || phase !== "challenge") {
+        return;
+      }
+      const rig = cameraRigRef.current;
+      const dx = event.clientX - rig.lastX;
+      const dy = event.clientY - rig.lastY;
+      rig.lastX = event.clientX;
+      rig.lastY = event.clientY;
+      rig.yaw -= dx * 0.0065;
+      rig.pitch = THREE.MathUtils.clamp(rig.pitch - dy * 0.0048, 0.2, 1.2);
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      if (phase !== "challenge") {
+        return;
+      }
+      event.preventDefault();
+      const rig = cameraRigRef.current;
+      rig.targetDistance = THREE.MathUtils.clamp(rig.targetDistance + event.deltaY * 0.004, 3.2, 8.4);
+    };
+
+    const onContextMenu = (event: MouseEvent) => {
+      if (phase === "challenge") {
+        event.preventDefault();
+      }
+    };
+
     const onKey = (event: KeyboardEvent) => {
       if (phase !== "challenge") {
         return;
@@ -1084,15 +1305,27 @@ export default function MixedPalletizingChampionship() {
     };
 
     canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointerleave", onPointerUp);
+    canvas.addEventListener("pointermove", onPointerDrag);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("contextmenu", onContextMenu);
     canvas.addEventListener("click", onClick);
     window.addEventListener("keydown", onKey);
 
     return () => {
       canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointerleave", onPointerUp);
+      canvas.removeEventListener("pointermove", onPointerDrag);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("contextmenu", onContextMenu);
       canvas.removeEventListener("click", onClick);
       window.removeEventListener("keydown", onKey);
     };
-  }, [phase, rotation, selectedItem, updateGhost]);
+  }, [phase, selectedItem, updateGhost]);
 
   const beginChallenge = () => {
     setPhase("brief");
@@ -1274,24 +1507,6 @@ export default function MixedPalletizingChampionship() {
     aiBuildStep > 0 && aiPlaced[aiBuildStep - 1]
       ? aiPlaced[aiBuildStep - 1].y + 1
       : 0;
-  const conveyorItems = useMemo(() => (queue.length > 0 ? [...queue, ...queue] : []), [queue]);
-
-  const selectCartonFromConveyor = (item: BoxQueueItem, event: ReactMouseEvent<HTMLButtonElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const pointer = cursorScreenRef.current;
-    const dx = THREE.MathUtils.clamp((pointer.x - cx) * 0.24, -140, 140);
-    const dy = THREE.MathUtils.clamp((pointer.y - cy) * 0.18 - 72, -150, -36);
-
-    setConveyorLaunch({ id: item.queueId, dx, dy });
-    setSelectedQueueId(item.queueId);
-
-    window.setTimeout(() => {
-      setConveyorLaunch((current) => (current?.id === item.queueId ? null : current));
-    }, 320);
-  };
-
   return (
     <main className={styles.page}>
       <div className={styles.frame}>
@@ -1451,62 +1666,25 @@ export default function MixedPalletizingChampionship() {
 
         {phase === "challenge" && (
           <div className={styles.challengeBar}>
-            <section className={styles.conveyorPanel}>
-              <h3 className={styles.stagingHead}>Carton Conveyor</h3>
-              <div className={styles.conveyorGlass}>
-                <div className={styles.conveyorTrack}>
-                  {conveyorItems.map((item, index) => {
-                    const active = item.queueId === selectedQueueId;
-                    const launch = conveyorLaunch?.id === item.queueId ? conveyorLaunch : null;
-                    const miniStyle = {
-                      ["--mini-w" as string]: `${18 + item.sku.w * 8}px`,
-                      ["--mini-h" as string]: `${10 + item.sku.h * 7}px`,
-                      ["--mini-d" as string]: `${12 + item.sku.d * 6}px`,
-                      ["--launch-x" as string]: `${launch?.dx ?? 0}px`,
-                      ["--launch-y" as string]: `${launch?.dy ?? 0}px`,
-                    } as CSSProperties;
-
-                    return (
-                      <button
-                        key={`${item.queueId}-${index}`}
-                        type="button"
-                        className={`${styles.conveyorCard} ${active ? styles.conveyorCardActive : ""} ${
-                          launch ? styles.conveyorCardLaunch : ""
-                        }`}
-                        onClick={(event) => selectCartonFromConveyor(item, event)}
-                        style={miniStyle}
-                        aria-label={`Select ${item.sku.id}`}
-                      >
-                        <div className={styles.miniBox} />
-                        <div className={styles.conveyorMeta}>
-                          <span className={styles.conveyorSku}>{item.sku.id}</span>
-                          <span className={styles.conveyorSpec}>
-                            {item.sku.w}x{item.sku.d}x{item.sku.h}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
             <section className={styles.controls}>
               <p className={styles.hint}>
-                Move mouse over the pallet for snapped placement. Click to place. Press R to rotate the active
-                carton. Green ghost is valid, red means invalid.
+                Move mouse over the pallet for snapped placement. Left click places or selects from the in-scene glass
+                inventory bar. Press R to rotate and middle-click to tilt the active carton.
               </p>
               <div className={styles.buttonRow}>
                 <button type="button" className={styles.secondaryBtn} onClick={() => setRotation((r) => !r)}>
                   Rotate (R)
+                </button>
+                <button type="button" className={styles.secondaryBtn} onClick={() => setTilt((value) => !value)}>
+                  Tilt (Middle Click)
                 </button>
                 <button type="button" className={styles.ghostBtn} onClick={() => setPhase("aiTransition")}>
                   End Run
                 </button>
               </div>
               <p className={styles.hint}>
-                Subtle instability feedback is active. Center-heavy, well-supported layers improve score and reduce
-                transport risk.
+                Right mouse drag orbits camera, mouse wheel zooms. Subtle instability feedback is active:
+                center-heavy, well-supported layers improve score and reduce transport risk.
               </p>
             </section>
           </div>
