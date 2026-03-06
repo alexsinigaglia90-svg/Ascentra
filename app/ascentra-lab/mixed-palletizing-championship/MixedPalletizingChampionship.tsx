@@ -86,6 +86,7 @@ export default function MixedPalletizingChampionship() {
   const [timer, setTimer] = useState(110);
   const [thinkingMessages, setThinkingMessages] = useState<SolverMessage[]>([]);
   const [aiBuildStep, setAiBuildStep] = useState(0);
+  const [aiLayerStatus, setAiLayerStatus] = useState("Awaiting layer sequence");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -100,6 +101,7 @@ export default function MixedPalletizingChampionship() {
   const userBoxesGroupRef = useRef<THREE.Group | null>(null);
   const aiBoxesGroupRef = useRef<THREE.Group | null>(null);
   const candidateGroupRef = useRef<THREE.Group | null>(null);
+  const candidateLayoutGroupRef = useRef<THREE.Group | null>(null);
   const ghostMeshRef = useRef<THREE.Mesh | null>(null);
   const pickMeshRef = useRef<THREE.Mesh | null>(null);
   const holoGridRef = useRef<THREE.Mesh | null>(null);
@@ -115,6 +117,16 @@ export default function MixedPalletizingChampionship() {
   const stabilityRef = useRef(100);
   const placedRef = useRef<PlacedBox[]>([]);
   const scenarioRef = useRef<Scenario>(scenario);
+  const aiLayoutsRef = useRef<PlacedBox[][]>([]);
+  const aiLayoutIndexRef = useRef(0);
+
+  const AI_LAYER_TEXT = useRef([
+    "Layer 1 stabilised",
+    "Layer 2 interlocked",
+    "Layer 3 density optimised",
+    "Layer 4 compression balanced",
+    "Top layer transport-ready",
+  ]);
 
   const hoveredPlacementRef = useRef<{
     x: number;
@@ -257,10 +269,23 @@ export default function MixedPalletizingChampionship() {
     keyLightRef.current = key;
     scene.add(key);
 
+    const overhead = new THREE.SpotLight("#e3f1ff", 2.9, 24, Math.PI / 6, 0.42, 1.4);
+    overhead.position.set(0.5, 8.8, 1.1);
+    overhead.target.position.set(0, 0.4, 0);
+    overhead.castShadow = true;
+    overhead.shadow.mapSize.set(2048, 2048);
+    overhead.shadow.bias = -0.00018;
+    scene.add(overhead);
+    scene.add(overhead.target);
+
     const rim = new THREE.PointLight("#5ac0ff", 2.6, 24, 1.9);
     rim.position.set(-5.5, 4.4, -4.6);
     rimLightRef.current = rim;
     scene.add(rim);
+
+    const rearRim = new THREE.PointLight("#88dfff", 1.7, 24, 1.8);
+    rearRim.position.set(4.8, 3.2, -5.8);
+    scene.add(rearRim);
 
     const fill = new THREE.PointLight("#5a78a6", 1.2, 18, 2);
     fill.position.set(4.2, 2.8, -3.1);
@@ -346,6 +371,10 @@ export default function MixedPalletizingChampionship() {
     const candidateGroup = new THREE.Group();
     candidateGroupRef.current = candidateGroup;
     scene.add(candidateGroup);
+
+    const candidateLayoutGroup = new THREE.Group();
+    candidateLayoutGroupRef.current = candidateLayoutGroup;
+    scene.add(candidateLayoutGroup);
 
     const holoGridGeo = new THREE.PlaneGeometry(4.1, 3.4, 18, 14);
     const holoGridMat = new THREE.MeshBasicMaterial({
@@ -562,6 +591,16 @@ export default function MixedPalletizingChampionship() {
           }
         }
 
+        const layoutGroup = candidateLayoutGroupRef.current;
+        if (layoutGroup) {
+          layoutGroup.children.forEach((child) => {
+            const mesh = child as THREE.Mesh;
+            const mat = mesh.material as THREE.MeshBasicMaterial;
+            mat.opacity *= 0.988;
+            mesh.position.y += Math.sin(t * 1.9 + mesh.position.x) * 0.0009;
+          });
+        }
+
         const holo = holoGridRef.current;
         if (holo) {
           const material = holo.material as THREE.MeshBasicMaterial;
@@ -579,6 +618,16 @@ export default function MixedPalletizingChampionship() {
         if (g && g.children.length > 0) {
           g.children.forEach((child) => {
             g.remove(child);
+            const mesh = child as THREE.Mesh;
+            mesh.geometry.dispose();
+            (mesh.material as THREE.Material).dispose();
+          });
+        }
+
+        const layoutGroup = candidateLayoutGroupRef.current;
+        if (layoutGroup && layoutGroup.children.length > 0) {
+          layoutGroup.children.forEach((child) => {
+            layoutGroup.remove(child);
             const mesh = child as THREE.Mesh;
             mesh.geometry.dispose();
             (mesh.material as THREE.Material).dispose();
@@ -915,10 +964,51 @@ export default function MixedPalletizingChampionship() {
     }
 
     setThinkingMessages([]);
+    aiLayoutsRef.current = [];
+    aiLayoutIndexRef.current = 0;
+
+    const pushCandidateLayoutMeshes = (layout: PlacedBox[]) => {
+      const group = candidateLayoutGroupRef.current;
+      if (!group) {
+        return;
+      }
+
+      group.children.forEach((child) => {
+        group.remove(child);
+        const mesh = child as THREE.Mesh;
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      });
+
+      layout.slice(0, 18).forEach((box, idx) => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(box.w * CELL_SIZE, box.h * CELL_SIZE, box.d * CELL_SIZE),
+          new THREE.MeshBasicMaterial({
+            color: idx % 3 === 0 ? "#6ff3ff" : "#4fd2ff",
+            transparent: true,
+            opacity: 0.2,
+            wireframe: true,
+          })
+        );
+        mesh.position.set(
+          (box.x + box.w / 2 - PALLET_WIDTH / 2) * CELL_SIZE,
+          box.y * CELL_SIZE + box.h * CELL_SIZE / 2 + CELL_SIZE * 0.48,
+          (box.z + box.d / 2 - PALLET_DEPTH / 2) * CELL_SIZE
+        );
+        group.add(mesh);
+      });
+    };
 
     const isStrongUser = userMetrics.score >= 78;
     const solveStart = window.setTimeout(() => {
       const solved = solveAiLayout(scenario);
+      const variants = [solved, solveAiLayout(scenario), solveAiLayout(scenario)].filter(
+        (layout) => layout.length > 0
+      );
+      aiLayoutsRef.current = variants;
+      if (variants[0]) {
+        pushCandidateLayoutMeshes(variants[0]);
+      }
       const aiBoost = isStrongUser ? 0 : 4;
       const solvedMetrics = calculateMetrics(scenario, solved, aiBoost);
       setAiPlaced(solved);
@@ -935,6 +1025,16 @@ export default function MixedPalletizingChampionship() {
       });
     }, 620);
 
+    const layoutPulse = window.setInterval(() => {
+      const layouts = aiLayoutsRef.current;
+      if (layouts.length === 0) {
+        return;
+      }
+      aiLayoutIndexRef.current = (aiLayoutIndexRef.current + 1) % layouts.length;
+      const nextLayout = layouts[aiLayoutIndexRef.current];
+      pushCandidateLayoutMeshes(nextLayout);
+    }, 1050);
+
     const end = window.setTimeout(() => {
       setPhase("aiBuild");
     }, 6200);
@@ -942,6 +1042,7 @@ export default function MixedPalletizingChampionship() {
     return () => {
       window.clearTimeout(solveStart);
       window.clearInterval(interval);
+      window.clearInterval(layoutPulse);
       window.clearTimeout(end);
     };
   }, [phase, scenario, userMetrics.score]);
@@ -952,6 +1053,7 @@ export default function MixedPalletizingChampionship() {
     }
 
     setAiBuildStep(0);
+    setAiLayerStatus("Computing layer path");
 
     if (aiPlaced.length === 0) {
       setPhase("results");
@@ -970,6 +1072,8 @@ export default function MixedPalletizingChampionship() {
       setAiBuildStep(index + 1);
 
       const current = aiPlaced[index];
+      const layerText = AI_LAYER_TEXT.current[current.y] ?? `Layer ${current.y + 1} calibrated`;
+      setAiLayerStatus(layerText);
       index += 1;
 
       if (index >= aiPlaced.length) {
@@ -1163,7 +1267,7 @@ export default function MixedPalletizingChampionship() {
                 {phase === "aiBuild" && (
                   <p className={styles.panelText}>
                     AI build reveal in progress: layer {aiCurrentLayer}, precision placement ({aiBuildStep}/
-                    {aiPlaced.length})
+                    {aiPlaced.length}) - {aiLayerStatus}
                   </p>
                 )}
               </div>

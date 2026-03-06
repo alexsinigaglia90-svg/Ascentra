@@ -316,7 +316,9 @@ export function calculateMetrics(
 function scoreCandidate(
   placed: PlacedBox[],
   candidate: PlacementCandidate,
-  sku: ScenarioSku
+  sku: ScenarioSku,
+  targetLayer: number,
+  fillerBias: number
 ): number {
   const sameLayer = placed.filter((item) => item.y === candidate.y);
   const layerCoherence =
@@ -352,6 +354,8 @@ function scoreCandidate(
   const area = (candidate.w * candidate.d) / 16;
   const fragileBias = sku.fragile ? (candidate.y > 1 ? 1 : 0.2) : 0;
   const layerPenalty = candidate.y > 0 ? 0 : 0.12;
+  const layerDiscipline = Math.max(0, 1 - Math.abs(candidate.y - targetLayer) / 5);
+  const fillerLift = fillerBias * (1 - area) * 0.22;
 
   return (
     center * 0.24 +
@@ -360,7 +364,9 @@ function scoreCandidate(
     fragileBias * 0.14 +
     layerCoherence * 0.16 +
     flatTopBonus * 0.17 +
-    layerPenalty
+    layerPenalty +
+    layerDiscipline * 0.14 +
+    fillerLift
   );
 }
 
@@ -418,21 +424,48 @@ export function solveAiLayout(scenario: Scenario): PlacedBox[] {
     return b.sku.weight - a.sku.weight;
   });
 
-  const placed: PlacedBox[] = [];
+  const anchors = queue.filter((item) => item.sku.weight >= 16 || item.sku.w * item.sku.d >= 8);
+  const fillers = queue.filter((item) => !anchors.includes(item));
+  fillers.sort((a, b) => a.sku.w * a.sku.d - b.sku.w * b.sku.d || a.sku.weight - b.sku.weight);
 
-  queue.forEach((item, index) => {
+  const ordered = [...anchors, ...fillers];
+
+  const placed: PlacedBox[] = [];
+  let targetLayer = 0;
+
+  const estimateLayerCoverage = (layer: number) => {
+    const occupied = new Set<string>();
+    placed
+      .filter((item) => item.y === layer)
+      .forEach((item) => {
+        for (let x = item.x; x < item.x + item.w; x += 1) {
+          for (let z = item.z; z < item.z + item.d; z += 1) {
+            occupied.add(`${x}:${z}`);
+          }
+        }
+      });
+    return occupied.size / (PALLET_WIDTH * PALLET_DEPTH);
+  };
+
+  ordered.forEach((item, index) => {
     const candidates = generateCandidates(placed, scenario, item.sku);
     if (candidates.length === 0) {
       return;
     }
 
-    candidates.sort((a, b) => {
-      const scoreA = scoreCandidate(placed, a, item.sku);
-      const scoreB = scoreCandidate(placed, b, item.sku);
+    const sameLayer = candidates.filter((candidate) => candidate.y === targetLayer);
+    const nearLayer = candidates.filter((candidate) => candidate.y <= targetLayer + 1);
+    const pool = sameLayer.length > 0 ? sameLayer : nearLayer.length > 0 ? nearLayer : candidates;
+
+    const fillerBias = item.sku.w * item.sku.d <= 4 ? 1 : 0;
+
+    pool.sort((a, b) => {
+      const scoreA = scoreCandidate(placed, a, item.sku, targetLayer, fillerBias);
+      const scoreB = scoreCandidate(placed, b, item.sku, targetLayer, fillerBias);
       return scoreB - scoreA;
     });
 
-    const choice = candidates[0];
+    const choice = pool[0];
 
     placed.push({
       placementId: `AI-${item.queueId}-${index}`,
@@ -448,6 +481,15 @@ export function solveAiLayout(scenario: Scenario): PlacedBox[] {
       weight: item.sku.weight,
       fragile: item.sku.fragile,
     });
+
+    const coverage = estimateLayerCoverage(targetLayer);
+    const hasFutureAtLayer = ordered.slice(index + 1).some((next) => {
+      const opts = generateCandidates(placed, scenario, next.sku);
+      return opts.some((candidate) => candidate.y === targetLayer);
+    });
+    if (coverage >= 0.74 || !hasFutureAtLayer) {
+      targetLayer += 1;
+    }
   });
 
   return placed.sort((a, b) => {
