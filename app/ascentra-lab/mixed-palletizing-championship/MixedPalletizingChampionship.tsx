@@ -901,54 +901,6 @@ export default function MixedPalletizingChampionship() {
               </aside>
             )}
 
-            {phase === "challenge" && (
-              <div className={styles.challengeBar}>
-                <section className={styles.staging}>
-                  <h3 className={styles.stagingHead}>Incoming Cartons</h3>
-                  <div className={styles.stagingGrid}>
-                    {queue.map((item) => {
-                      const active = item.queueId === selectedQueueId;
-                      return (
-                        <button
-                          key={item.queueId}
-                          type="button"
-                          className={`${styles.boxCard} ${active ? styles.boxCardActive : ""}`}
-                          onClick={() => setSelectedQueueId(item.queueId)}
-                        >
-                          <div className={styles.boxLabel}>
-                            {item.sku.id} • {item.sku.label}
-                          </div>
-                          <div className={styles.boxSpec}>
-                            {item.sku.w}x{item.sku.d}x{item.sku.h} | {item.sku.weight}kg
-                            {item.sku.fragile ? " | Fragile" : ""}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                <section className={styles.controls}>
-                  <p className={styles.hint}>
-                    Move mouse over the pallet for snapped placement. Click to place. Press R to rotate the active
-                    carton. Green ghost is valid, red means invalid.
-                  </p>
-                  <div className={styles.buttonRow}>
-                    <button type="button" className={styles.secondaryBtn} onClick={() => setRotation((r) => !r)}>
-                      Rotate (R)
-                    </button>
-                    <button type="button" className={styles.ghostBtn} onClick={() => setPhase("aiTransition")}>
-                      End Run
-                    </button>
-                  </div>
-                  <p className={styles.hint}>
-                    Subtle instability feedback is active. Center-heavy, well-supported layers improve score and reduce
-                    transport risk.
-                  </p>
-                </section>
-              </div>
-            )}
-
             {isAiVisual && (
               <div className={styles.aiPanel}>
                 <p className={styles.panelTitle}>Ascentra Pallet Intelligence</p>
@@ -974,6 +926,54 @@ export default function MixedPalletizingChampionship() {
             )}
           </div>
         </section>
+
+        {phase === "challenge" && (
+          <div className={styles.challengeBar}>
+            <section className={styles.staging}>
+              <h3 className={styles.stagingHead}>Incoming Cartons</h3>
+              <div className={styles.stagingGrid}>
+                {queue.map((item) => {
+                  const active = item.queueId === selectedQueueId;
+                  return (
+                    <button
+                      key={item.queueId}
+                      type="button"
+                      className={`${styles.boxCard} ${active ? styles.boxCardActive : ""}`}
+                      onClick={() => setSelectedQueueId(item.queueId)}
+                    >
+                      <div className={styles.boxLabel}>
+                        {item.sku.id} • {item.sku.label}
+                      </div>
+                      <div className={styles.boxSpec}>
+                        {item.sku.w}x{item.sku.d}x{item.sku.h} | {item.sku.weight}kg
+                        {item.sku.fragile ? " | Fragile" : ""}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className={styles.controls}>
+              <p className={styles.hint}>
+                Move mouse over the pallet for snapped placement. Click to place. Press R to rotate the active
+                carton. Green ghost is valid, red means invalid.
+              </p>
+              <div className={styles.buttonRow}>
+                <button type="button" className={styles.secondaryBtn} onClick={() => setRotation((r) => !r)}>
+                  Rotate (R)
+                </button>
+                <button type="button" className={styles.ghostBtn} onClick={() => setPhase("aiTransition")}>
+                  End Run
+                </button>
+              </div>
+              <p className={styles.hint}>
+                Subtle instability feedback is active. Center-heavy, well-supported layers improve score and reduce
+                transport risk.
+              </p>
+            </section>
+          </div>
+        )}
 
         {phase === "results" && (
           <section className={styles.resultsWrap}>

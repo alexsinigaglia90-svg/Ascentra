@@ -307,17 +307,12 @@
 }
 
 .challengeBar {
-  position: absolute;
-  left: 1rem;
-  right: 1rem;
-  bottom: 1rem;
+  margin-top: 0.85rem;
   pointer-events: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
   gap: 0.8rem;
-  align-items: stretch;
-  max-height: calc(100% - 8.4rem);
-  min-height: 180px;
+  align-items: start;
 }
 
 .staging {
@@ -325,7 +320,7 @@
   border-radius: 1rem;
   background: #0b1624cf;
   padding: 0.7rem;
-  min-height: 0;
+  min-height: 180px;
   overflow: hidden;
 }
 
@@ -526,11 +521,8 @@
   }
 
   .challengeBar {
-    position: static;
-    margin: 0.8rem;
+    margin-top: 0.8rem;
     grid-template-columns: 1fr;
-    max-height: none;
-    min-height: 0;
   }
 
   .panel {
