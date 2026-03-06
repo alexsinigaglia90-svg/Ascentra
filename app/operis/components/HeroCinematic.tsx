@@ -1,6 +1,17 @@
+import Link from "next/link";
+
 export function HeroCinematic() {
   return (
     <section className="relative flex min-h-screen items-end overflow-hidden border-b border-[var(--om-stroke)] px-6 pb-16 pt-28 sm:px-10 lg:px-16">
+      <div className="absolute left-6 top-8 z-20 sm:left-10 lg:left-16">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--om-stroke)] bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--om-blue)] backdrop-blur transition hover:bg-white"
+        >
+          Terug naar Home
+        </Link>
+      </div>
+
       <video
         className="absolute inset-0 h-full w-full object-cover"
         autoPlay
