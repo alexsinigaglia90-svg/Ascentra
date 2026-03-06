@@ -34,13 +34,58 @@ export function DepartmentPanel({
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [availabilityFilter, setAvailabilityFilter] = useState<
+    "all" | "immediate" | "two-weeks" | "month-plus"
+  >("all");
+  const [seniorityFilter, setSeniorityFilter] = useState<"all" | "senior" | "principal">(
+    "all"
+  );
+  const [sortMode, setSortMode] = useState<"seniority" | "availability" | "name">(
+    "seniority"
+  );
   const reduceMotion = useReducedMotion();
 
   const roleTeams = useMemo(() => {
+    const sortBy = (a: { seniorityYears: number; availabilityCode: string; name: string }, b: { seniorityYears: number; availabilityCode: string; name: string }) => {
+      if (sortMode === "name") {
+        return a.name.localeCompare(b.name, "nl");
+      }
+
+      if (sortMode === "availability") {
+        const rank = { immediate: 1, "two-weeks": 2, "month-plus": 3 } as const;
+        const byAvailability = rank[a.availabilityCode as keyof typeof rank] - rank[b.availabilityCode as keyof typeof rank];
+        if (byAvailability !== 0) {
+          return byAvailability;
+        }
+        return b.seniorityYears - a.seniorityYears;
+      }
+
+      return b.seniorityYears - a.seniorityYears;
+    };
+
     return Object.fromEntries(
-      department.roles.map((role) => [role, getEmployeesByRole(department.id, role)])
+      department.roles.map((role) => {
+        const filtered = getEmployeesByRole(department.id, role)
+          .filter((person) => {
+            if (availabilityFilter !== "all" && person.availabilityCode !== availabilityFilter) {
+              return false;
+            }
+            if (seniorityFilter === "senior" && person.seniorityYears < 8) {
+              return false;
+            }
+            if (seniorityFilter === "principal" && person.seniorityYears < 12) {
+              return false;
+            }
+            return true;
+          })
+          .sort(sortBy);
+
+        return [role, filtered];
+      })
     );
-  }, [department.id, department.roles]);
+  }, [availabilityFilter, department.id, department.roles, seniorityFilter, sortMode]);
+
+  const hasActiveTalentFilters = availabilityFilter !== "all" || seniorityFilter !== "all";
 
   useEffect(() => {
     const sync = () => {
@@ -139,12 +184,58 @@ export function DepartmentPanel({
             <p className="mt-2 text-sm text-[var(--om-ink)]/70">
               Selecteer een rol en open direct bijbehorende profielpagina&apos;s.
             </p>
+            <div className="mt-4 rounded-2xl border border-[var(--om-stroke)] bg-white/55 p-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--om-brown)]">
+                Talent filters
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <select
+                  value={availabilityFilter}
+                  onChange={(event) =>
+                    setAvailabilityFilter(
+                      event.target.value as "all" | "immediate" | "two-weeks" | "month-plus"
+                    )
+                  }
+                  className="rounded-xl border border-[var(--om-stroke)] bg-white px-2.5 py-2 text-xs text-[var(--om-ink)]"
+                >
+                  <option value="all">Beschikbaarheid: Alles</option>
+                  <option value="immediate">Beschikbaarheid: Direct</option>
+                  <option value="two-weeks">Beschikbaarheid: Binnen 2 weken</option>
+                  <option value="month-plus">Beschikbaarheid: Binnen 4 weken</option>
+                </select>
+
+                <select
+                  value={seniorityFilter}
+                  onChange={(event) =>
+                    setSeniorityFilter(event.target.value as "all" | "senior" | "principal")
+                  }
+                  className="rounded-xl border border-[var(--om-stroke)] bg-white px-2.5 py-2 text-xs text-[var(--om-ink)]"
+                >
+                  <option value="all">Senioriteit: Alles</option>
+                  <option value="senior">Senioriteit: Senior 8+ jaar</option>
+                  <option value="principal">Senioriteit: Principal 12+ jaar</option>
+                </select>
+
+                <select
+                  value={sortMode}
+                  onChange={(event) =>
+                    setSortMode(event.target.value as "seniority" | "availability" | "name")
+                  }
+                  className="rounded-xl border border-[var(--om-stroke)] bg-white px-2.5 py-2 text-xs text-[var(--om-ink)]"
+                >
+                  <option value="seniority">Sortering: Senioriteit</option>
+                  <option value="availability">Sortering: Beschikbaarheid</option>
+                  <option value="name">Sortering: Naam</option>
+                </select>
+              </div>
+            </div>
             <div className="mt-4">
               <RoleGrid
                 roles={department.roles}
                 selectedRole={selectedRole}
                 onSelectRole={(role) => setSelectedRole(role || null)}
                 roleTeams={roleTeams}
+                hasActiveTalentFilters={hasActiveTalentFilters}
               />
             </div>
           </section>

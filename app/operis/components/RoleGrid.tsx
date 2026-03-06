@@ -9,9 +9,16 @@ type Props = {
   selectedRole: string | null;
   onSelectRole: (role: string) => void;
   roleTeams: Record<string, EmployeeProfile[]>;
+  hasActiveTalentFilters: boolean;
 };
 
-export function RoleGrid({ roles, selectedRole, onSelectRole, roleTeams }: Props) {
+export function RoleGrid({
+  roles,
+  selectedRole,
+  onSelectRole,
+  roleTeams,
+  hasActiveTalentFilters,
+}: Props) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {roles.map((role) => {
@@ -36,7 +43,7 @@ export function RoleGrid({ roles, selectedRole, onSelectRole, roleTeams }: Props
                 <p className="text-sm font-medium text-[var(--om-ink)]">{role}</p>
                 {team.length > 0 && (
                   <span className="rounded-full bg-[var(--om-blue)]/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--om-blue)]">
-                    {team.length} profiel
+                    {team.length} match
                   </span>
                 )}
               </div>
@@ -63,6 +70,14 @@ export function RoleGrid({ roles, selectedRole, onSelectRole, roleTeams }: Props
                     </Link>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {team.length === 0 && hasActiveTalentFilters && (
+              <div className="mt-3 border-t border-[var(--om-stroke)]/80 px-2 pt-3">
+                <p className="text-xs text-[var(--om-ink)]/60">
+                  Geen professionals voor deze rol binnen de actieve filters.
+                </p>
               </div>
             )}
           </motion.article>
